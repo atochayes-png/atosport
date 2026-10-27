@@ -9,7 +9,7 @@ import { LiveScoresView } from './components/LiveScoresView';
 import { NewTournamentModal } from './components/NewTournamentModal';
 import { Tournament } from './types/tournament';
 import { Team } from './types/team';
-import { Match, Matchday } from './types/match';
+import { Match, Matchday, MatchStatus } from './types/match';
 import { INITIAL_TEAMS } from './data/initialTeams';
 import { INITIAL_MATCHDAYS, INITIAL_MATCHES } from './data/initialMatches';
 import { CheckCircle2, Shield } from 'lucide-react';
@@ -328,6 +328,29 @@ function AppContent() {
     setTimeout(() => setNotification(null), 3000);
   };
 
+  // Update match score and status
+  const handleUpdateScore = (
+    matchId: string,
+    homeScore: number,
+    awayScore: number,
+    status: MatchStatus
+  ) => {
+    setMatches((prev) =>
+      prev.map((m) =>
+        m.id === matchId
+          ? { ...m, homeScore, awayScore, status }
+          : m
+      )
+    );
+
+    const targetMatch = matches.find((m) => m.id === matchId);
+    const home = teams.find((t) => t.id === targetMatch?.homeTeamId)?.name || 'Local';
+    const away = teams.find((t) => t.id === targetMatch?.awayTeamId)?.name || 'Visitante';
+
+    setNotification(`¡Marcador oficial registrado: ${home} ${homeScore} - ${awayScore} ${away}!`);
+    setTimeout(() => setNotification(null), 4000);
+  };
+
   const handleNavigate = (tab: 'dashboard' | 'tournaments' | 'scores') => {
     setSelectedTournamentId(null);
     setCurrentTab(tab);
@@ -371,6 +394,7 @@ function AppContent() {
             onAddMatchday={handleAddMatchday}
             onAddMatch={handleAddMatch}
             onDeleteMatch={handleDeleteMatch}
+            onUpdateScore={handleUpdateScore}
           />
         ) : (
           <>

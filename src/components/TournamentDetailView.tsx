@@ -19,13 +19,16 @@ import {
   Activity,
   Clock,
   Swords,
-  AlertCircle
+  AlertCircle,
+  Edit3
 } from 'lucide-react';
 import { Tournament, TournamentStatus } from '../types/tournament';
 import { Team, TournamentDetailTab } from '../types/team';
-import { Match, Matchday } from '../types/match';
+import { Match, Matchday, MatchStatus } from '../types/match';
 import { NewTeamModal } from './NewTeamModal';
 import { NewMatchModal } from './NewMatchModal';
+import { ScoreModal } from './ScoreModal';
+import { StandingsTable } from './StandingsTable';
 
 interface TournamentDetailViewProps {
   tournament: Tournament;
@@ -38,6 +41,7 @@ interface TournamentDetailViewProps {
   onAddMatchday: (tournamentId: string) => void;
   onAddMatch: (match: Omit<Match, 'id' | 'createdAt'>) => void;
   onDeleteMatch: (matchId: string) => void;
+  onUpdateScore: (matchId: string, homeScore: number, awayScore: number, status: MatchStatus) => void;
 }
 
 export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
@@ -51,11 +55,14 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
   onAddMatchday,
   onAddMatch,
   onDeleteMatch,
+  onUpdateScore,
 }) => {
   const [activeTab, setActiveTab] = useState<TournamentDetailTab>('equipos');
   const [searchTerm, setSearchTerm] = useState('');
   const [isNewTeamModalOpen, setIsNewTeamModalOpen] = useState(false);
   const [isNewMatchModalOpen, setIsNewMatchModalOpen] = useState(false);
+  const [isScoreModalOpen, setIsScoreModalOpen] = useState(false);
+  const [selectedMatchForScore, setSelectedMatchForScore] = useState<Match | null>(null);
   const [copyToast, setCopyToast] = useState(false);
 
   // Filter teams registered for this specific tournament
@@ -67,6 +74,7 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
     .sort((a, b) => a.number - b.number);
 
   const tournamentMatches = matches.filter((m) => m.tournamentId === tournament.id);
+  const finishedMatchesCount = tournamentMatches.filter((m) => m.status === 'Finalizado').length;
 
   // Active matchday state (defaults to first matchday or 1)
   const [selectedMatchdayNumber, setSelectedMatchdayNumber] = useState<number>(() => {
@@ -312,7 +320,7 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
               id: 'tabla' as TournamentDetailTab,
               label: 'Tabla de Posiciones',
               icon: Table,
-              badge: null,
+              badge: finishedMatchesCount > 0 ? `${finishedMatchesCount} JJ` : 'Dinámica',
             },
             {
               id: 'cedulas' as TournamentDetailTab,
@@ -533,7 +541,7 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
         </div>
       )}
 
-      {/* TAB CONTENT 2: ROL DE JUEGOS (ACTIVO Y COMPLETO) */}
+      {/* TAB CONTENT 2: ROL DE JUEGOS (CON CAPTURA DE MARCADOR) */}
       {activeTab === 'rol' && (
         <div className="space-y-6 animate-in fade-in duration-200">
           {/* Subheader: Jornadas Horizontal Tabs + Actions */}
@@ -673,13 +681,24 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
                 const homeColor = homeTeam?.color || '#10B981';
                 const awayColor = awayTeam?.color || '#2563EB';
 
+                const isFinished = match.status === 'Finalizado' && match.homeScore !== undefined && match.awayScore !== undefined;
+                const isLive = match.status === 'En Vivo';
+
                 return (
                   <div
                     key={match.id}
                     className="group rounded-2xl p-4 sm:p-5 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700/80 shadow-sm hover:shadow-md dark:shadow-none dark:hover:shadow-card-dark transition-all duration-300 relative overflow-hidden"
                   >
                     {/* Status accent side bar */}
-                    <div className="absolute top-0 bottom-0 left-0 w-1.5 bg-gradient-to-b from-emerald-500 to-teal-500" />
+                    <div
+                      className={`absolute top-0 bottom-0 left-0 w-1.5 ${
+                        isFinished
+                          ? 'bg-gradient-to-b from-slate-400 to-slate-500'
+                          : isLive
+                          ? 'bg-gradient-to-b from-amber-500 to-red-500 animate-pulse'
+                          : 'bg-gradient-to-b from-emerald-500 to-teal-500'
+                      }`}
+                    />
 
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pl-2">
                       {/* Left: Home Team */}
@@ -706,20 +725,54 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
                         </div>
                       </div>
 
-                      {/* Center: Match Details & VS */}
-                      <div className="flex flex-col items-center justify-center py-2 px-3 sm:px-6 rounded-xl bg-slate-50 dark:bg-[#070A0F]/60 border border-slate-200/80 dark:border-slate-800/60 shrink-0 text-center">
+                      {/* Center: Match Details & Scores */}
+                      <div className="flex flex-col items-center justify-center py-2.5 px-3 sm:px-6 rounded-2xl bg-slate-50 dark:bg-[#070A0F]/70 border border-slate-200/80 dark:border-slate-800/60 shrink-0 text-center min-w-[200px]">
                         {/* Status Badge */}
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 mb-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          {match.status}
-                        </span>
-
-                        {/* Time & VS */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
-                            {match.time} hrs
-                          </span>
+                        <div className="mb-1.5">
+                          {isFinished ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                              Finalizado
+                            </span>
+                          ) : isLive ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                              En Juego
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              Programado
+                            </span>
+                          )}
                         </div>
+
+                        {/* Big Score or Time Display */}
+                        {isFinished || isLive ? (
+                          <div className="flex items-center gap-3 my-0.5">
+                            <span className={`text-2xl sm:text-3xl font-black ${
+                              (match.homeScore ?? 0) > (match.awayScore ?? 0)
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-slate-900 dark:text-white'
+                            }`}>
+                              {match.homeScore ?? 0}
+                            </span>
+                            <span className="text-base font-bold text-slate-400 select-none">-</span>
+                            <span className={`text-2xl sm:text-3xl font-black ${
+                              (match.awayScore ?? 0) > (match.homeScore ?? 0)
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-slate-900 dark:text-white'
+                            }`}>
+                              {match.awayScore ?? 0}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 my-0.5">
+                            <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
+                              {match.time} hrs
+                            </span>
+                          </div>
+                        )}
 
                         {/* Date and Field */}
                         <div className="flex items-center gap-2 text-[11px] text-slate-600 dark:text-slate-400 mt-1 font-medium">
@@ -728,11 +781,36 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
                             {formatMatchDate(match.date)}
                           </span>
                           <span>•</span>
-                          <span className="flex items-center gap-1 truncate max-w-[150px]">
+                          <span className="flex items-center gap-1 truncate max-w-[140px]">
                             <MapPin className="w-3 h-3 text-emerald-500 shrink-0" />
                             {match.field}
                           </span>
                         </div>
+
+                        {/* Score Capture / Edit Action Button */}
+                        <button
+                          onClick={() => {
+                            setSelectedMatchForScore(match);
+                            setIsScoreModalOpen(true);
+                          }}
+                          className={`mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                            isFinished
+                              ? 'text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 bg-white dark:bg-[#0B0F17] hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 shadow-sm'
+                              : 'text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 shadow-sm'
+                          }`}
+                        >
+                          {isFinished ? (
+                            <>
+                              <Edit3 className="w-3 h-3" />
+                              <span>Editar Marcador</span>
+                            </>
+                          ) : (
+                            <>
+                              <Trophy className="w-3 h-3 stroke-[2.5]" />
+                              <span>+ Marcador / Resultado</span>
+                            </>
+                          )}
+                        </button>
                       </div>
 
                       {/* Right: Away Team */}
@@ -782,61 +860,13 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
         </div>
       )}
 
-      {/* TAB CONTENT 3: TABLA DE POSICIONES (PLACEHOLDER SOBRIO) */}
+      {/* TAB CONTENT 3: TABLA DE POSICIONES (DINÁMICA Y AUTOMÁTICA) */}
       {activeTab === 'tabla' && (
-        <div className="rounded-2xl p-6 sm:p-10 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
-          <div className="max-w-2xl mx-auto text-center space-y-3">
-            <div className="w-14 h-14 rounded-2xl bg-blue-500/10 text-blue-500 mx-auto flex items-center justify-center">
-              <Table className="w-7 h-7" />
-            </div>
-            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-              La tabla se generará con los resultados
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-              La clasificación general (puntos, partidos jugados, diferencia de goles y estadísticas ofensivas) se actualizará automáticamente conforme se disputen los encuentros.
-            </p>
-          </div>
-
-          {/* Visual Mockup Preview */}
-          <div className="max-w-3xl mx-auto pt-2 overflow-x-auto opacity-75 pointer-events-none select-none">
-            <div className="p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700/80 bg-slate-50/50 dark:bg-[#070A0F]/50">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider">
-                    <th className="pb-2">Pos</th>
-                    <th className="pb-2">Club</th>
-                    <th className="pb-2 text-center">JJ</th>
-                    <th className="pb-2 text-center">JG</th>
-                    <th className="pb-2 text-center">JE</th>
-                    <th className="pb-2 text-center">JP</th>
-                    <th className="pb-2 text-center">DIF</th>
-                    <th className="pb-2 text-center font-bold text-emerald-500">PTS</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200/60 dark:divide-slate-800/60 text-slate-600 dark:text-slate-400">
-                  {(tournamentTeams.slice(0, 4).length > 0
-                    ? tournamentTeams.slice(0, 4)
-                    : [
-                        { id: 'mock-1', name: 'Atlético Modelo', shortName: 'ATM' },
-                        { id: 'mock-2', name: 'Deportivo Montejo', shortName: 'DPM' },
-                      ]
-                  ).map((t, idx) => (
-                    <tr key={t.id}>
-                      <td className="py-2.5 font-bold text-slate-900 dark:text-white">{idx + 1}</td>
-                      <td className="py-2.5 font-semibold text-slate-800 dark:text-slate-200">{t.name}</td>
-                      <td className="py-2.5 text-center">0</td>
-                      <td className="py-2.5 text-center">0</td>
-                      <td className="py-2.5 text-center">0</td>
-                      <td className="py-2.5 text-center">0</td>
-                      <td className="py-2.5 text-center">0</td>
-                      <td className="py-2.5 text-center font-bold text-emerald-500">0</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <StandingsTable
+          teams={tournamentTeams}
+          matches={tournamentMatches}
+          tournamentName={tournament.name}
+        />
       )}
 
       {/* TAB CONTENT 4: CÉDULAS ARBITRALES (PLACEHOLDER SOBRIO) */}
@@ -905,6 +935,23 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
         onSave={(matchData) => {
           onAddMatch(matchData);
           setIsNewMatchModalOpen(false);
+        }}
+      />
+
+      {/* Score Modal */}
+      <ScoreModal
+        isOpen={isScoreModalOpen}
+        match={selectedMatchForScore}
+        homeTeam={teams.find((t) => t.id === selectedMatchForScore?.homeTeamId)}
+        awayTeam={teams.find((t) => t.id === selectedMatchForScore?.awayTeamId)}
+        onClose={() => {
+          setIsScoreModalOpen(false);
+          setSelectedMatchForScore(null);
+        }}
+        onSave={(matchId, homeScore, awayScore, status) => {
+          onUpdateScore(matchId, homeScore, awayScore, status);
+          setIsScoreModalOpen(false);
+          setSelectedMatchForScore(null);
         }}
       />
     </div>

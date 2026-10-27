@@ -52,7 +52,9 @@ export const INITIAL_MATCHES: Match[] = [
     date: '2026-11-06',
     time: '19:00',
     field: 'Cancha 1 (Principal)',
-    status: 'Programado',
+    status: 'Finalizado',
+    homeScore: 3,
+    awayScore: 1,
     createdAt: '2026-02-15T10:00:00.000Z',
   },
   {
@@ -64,7 +66,9 @@ export const INITIAL_MATCHES: Match[] = [
     date: '2026-11-06',
     time: '20:15',
     field: 'Cancha 1 (Principal)',
-    status: 'Programado',
+    status: 'Finalizado',
+    homeScore: 2,
+    awayScore: 2,
     createdAt: '2026-02-15T10:30:00.000Z',
   },
   {
