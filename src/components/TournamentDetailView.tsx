@@ -1,0 +1,648 @@
+import React, { useState } from 'react';
+import { 
+  ArrowLeft, 
+  Trophy, 
+  MapPin, 
+  Calendar, 
+  Users, 
+  Plus, 
+  Search, 
+  Phone, 
+  Trash2, 
+  Shield, 
+  Crown, 
+  CalendarDays, 
+  Table, 
+  FileCheck, 
+  CheckCircle2, 
+  Share2, 
+  Activity,
+  Clock,
+  Sparkles
+} from 'lucide-react';
+import { Tournament, TournamentStatus } from '../types/tournament';
+import { Team, TournamentDetailTab } from '../types/team';
+import { NewTeamModal } from './NewTeamModal';
+
+interface TournamentDetailViewProps {
+  tournament: Tournament;
+  teams: Team[];
+  onBack: () => void;
+  onAddTeam: (team: Omit<Team, 'id' | 'createdAt'>) => void;
+  onDeleteTeam: (teamId: string) => void;
+}
+
+export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
+  tournament,
+  teams,
+  onBack,
+  onAddTeam,
+  onDeleteTeam,
+}) => {
+  const [activeTab, setActiveTab] = useState<TournamentDetailTab>('equipos');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isNewTeamModalOpen, setIsNewTeamModalOpen] = useState(false);
+  const [copyToast, setCopyToast] = useState(false);
+
+  // Filter teams registered for this specific tournament
+  const tournamentTeams = teams.filter((t) => t.tournamentId === tournament.id);
+
+  // Search filter inside the tournament's teams
+  const filteredTeams = tournamentTeams.filter((team) => {
+    const q = searchTerm.toLowerCase();
+    return (
+      team.name.toLowerCase().includes(q) ||
+      team.representative.toLowerCase().includes(q) ||
+      team.shortName.toLowerCase().includes(q) ||
+      team.phone.toLowerCase().includes(q)
+    );
+  });
+
+  const registeredCount = tournamentTeams.length;
+  const maxTeams = tournament.maxTeams || 16;
+  const isFull = registeredCount >= maxTeams;
+  const progressPercent = Math.min(100, Math.round((registeredCount / maxTeams) * 100));
+
+  const handleShare = () => {
+    navigator.clipboard?.writeText(window.location.href);
+    setCopyToast(true);
+    setTimeout(() => setCopyToast(false), 3000);
+  };
+
+  const formatDate = (isoString: string) => {
+    try {
+      const d = new Date(isoString);
+      return d.toLocaleDateString('es-MX', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+    } catch {
+      return 'Reciente';
+    }
+  };
+
+  const getStatusBadge = (status: TournamentStatus) => {
+    switch (status) {
+      case 'Activo':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            Torneo Activo
+          </span>
+        );
+      case 'En Inscripciones':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+            <span className="w-2 h-2 rounded-full bg-blue-500" />
+            En Inscripciones
+          </span>
+        );
+      case 'Próximo':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            Próximo Torneo
+          </span>
+        );
+      case 'Finalizado':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20">
+            Finalizado
+          </span>
+        );
+    }
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8 animate-in fade-in duration-300">
+      {/* Top Back Action Bar */}
+      <div className="flex items-center justify-between gap-4">
+        <button
+          onClick={onBack}
+          className="group inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 bg-white dark:bg-[#0B0F17] hover:bg-slate-50 dark:hover:bg-slate-800/80 border border-slate-200 dark:border-slate-800 shadow-sm transition-all min-h-[40px]"
+        >
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+          <span>Volver a Torneos</span>
+        </button>
+
+        <div className="flex items-center gap-2">
+          {copyToast && (
+            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 animate-in fade-in">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              ¡Enlace copiado!
+            </span>
+          )}
+
+          <button
+            onClick={handleShare}
+            className="p-2 sm:px-3 sm:py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-[#0B0F17] hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 shadow-sm transition-colors flex items-center gap-1.5 min-h-[40px]"
+            title="Compartir Torneo"
+          >
+            <Share2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Compartir</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Main Tournament Hero Header */}
+      <div className="relative rounded-3xl p-6 sm:p-8 lg:p-10 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-card-dark overflow-hidden">
+        {/* Subtle background gradient glow */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-emerald-500/10 via-emerald-500/5 to-transparent rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 sm:gap-8">
+          {/* Tournament Main Details */}
+          <div className="space-y-4 max-w-3xl">
+            {/* Badges row */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800/80 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60">
+                <Activity className="w-3.5 h-3.5 text-emerald-500" />
+                {tournament.sport}
+              </span>
+
+              {getStatusBadge(tournament.status)}
+
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800">
+                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                {tournament.season}
+              </span>
+            </div>
+
+            {/* Tournament Title */}
+            <div>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-tight flex items-center gap-2.5 sm:gap-3">
+                <Trophy className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>{tournament.name}</span>
+              </h1>
+              <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-2">
+                <MapPin className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span className="font-medium">{tournament.venue}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Real-time Teams Counter Card */}
+          <div className="w-full lg:w-80 p-5 rounded-2xl bg-slate-50 dark:bg-[#070A0F]/80 border border-slate-200 dark:border-slate-800/80 space-y-3.5 shrink-0">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                <Users className="w-4 h-4 text-emerald-500" />
+                Equipos Inscritos
+              </span>
+              <span className="px-2 py-0.5 rounded-md text-[11px] font-extrabold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                {progressPercent}% Lleno
+              </span>
+            </div>
+
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+                {registeredCount}
+              </span>
+              <span className="text-lg sm:text-xl font-bold text-slate-400 dark:text-slate-500">
+                / {maxTeams} Equipos
+              </span>
+            </div>
+
+            {/* Progress bar */}
+            <div className="w-full h-2.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-500"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-0.5">
+              <span>
+                {isFull ? (
+                  <span className="text-amber-500 font-bold">Cupo completo</span>
+                ) : (
+                  <span>
+                    Quedan <strong className="text-slate-900 dark:text-white">{maxTeams - registeredCount}</strong> cupos
+                  </span>
+                )}
+              </span>
+              <span className="text-[11px]">Máx: {maxTeams}</span>
+            </div>
+
+            <button
+              onClick={() => setIsNewTeamModalOpen(true)}
+              disabled={isFull}
+              className={`w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-sm ${
+                isFull
+                  ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+                  : 'text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 dark:shadow-emerald-glow'
+              }`}
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>+ Inscribir Equipo</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Management Tabs Bar */}
+      <div className="border-b border-slate-200 dark:border-slate-800/80">
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-2">
+          {[
+            {
+              id: 'equipos' as TournamentDetailTab,
+              label: 'Equipos',
+              icon: Users,
+              badge: registeredCount.toString(),
+            },
+            {
+              id: 'rol' as TournamentDetailTab,
+              label: 'Rol de Juegos',
+              icon: CalendarDays,
+              badge: 'Próx',
+            },
+            {
+              id: 'tabla' as TournamentDetailTab,
+              label: 'Tabla de Posiciones',
+              icon: Table,
+              badge: null,
+            },
+            {
+              id: 'cedulas' as TournamentDetailTab,
+              label: 'Cédulas Arbitrales',
+              icon: FileCheck,
+              badge: null,
+            },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2.5 px-4 sm:px-5 py-3 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all border ${
+                  isActive
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shadow-sm'
+                    : 'bg-white dark:bg-[#0B0F17] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                }`}
+              >
+                <Icon className={`w-4 h-4 ${isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
+                <span>{tab.label}</span>
+                {tab.badge && (
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                      isActive
+                        ? 'bg-emerald-500 text-slate-950'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* TAB CONTENT 1: EQUIPOS */}
+      {activeTab === 'equipos' && (
+        <div className="space-y-6">
+          {/* Subheader: Search and Action */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Shield className="w-5 h-5 text-emerald-500" />
+                <span>Equipos Inscritos</span>
+              </h2>
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                {tournamentTeams.length} en total
+              </span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              {/* Filter search */}
+              <div className="relative w-full sm:w-72">
+                <input
+                  type="text"
+                  placeholder="Buscar equipo, capitán o siglas..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors min-h-[40px]"
+                />
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+
+              {/* Action button */}
+              <button
+                onClick={() => setIsNewTeamModalOpen(true)}
+                disabled={isFull}
+                className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all min-h-[40px] ${
+                  isFull
+                    ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+                    : 'text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 shadow-md dark:shadow-emerald-glow'
+                }`}
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span>+ Inscribir Equipo</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Teams Grid / Empty State */}
+          {tournamentTeams.length === 0 ? (
+            <div className="text-center py-16 px-4 rounded-2xl bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800/80 space-y-4 shadow-sm">
+              <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 text-emerald-500 mx-auto flex items-center justify-center">
+                <Shield className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                No hay equipos inscritos todavía
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-md mx-auto">
+                Registra los clubes deportivos participantes para generar posteriormente el rol de juegos y la tabla general.
+              </p>
+              <button
+                onClick={() => setIsNewTeamModalOpen(true)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-slate-950 bg-emerald-400 hover:bg-emerald-300 transition-colors shadow-sm"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                Inscribir Primer Equipo
+              </button>
+            </div>
+          ) : filteredTeams.length === 0 ? (
+            <div className="text-center py-12 px-4 rounded-2xl bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 space-y-3">
+              <Search className="w-8 h-8 text-slate-400 mx-auto" />
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                No se encontraron equipos con "{searchTerm}"
+              </h3>
+              <button
+                onClick={() => setSearchTerm('')}
+                className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+              >
+                Limpiar búsqueda
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+              {filteredTeams.map((team) => {
+                const teamColor = team.color || '#10B981';
+
+                return (
+                  <div
+                    key={team.id}
+                    className="group rounded-2xl p-5 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700/80 shadow-sm hover:shadow-md dark:shadow-none dark:hover:shadow-card-dark transition-all duration-300 flex flex-col justify-between relative overflow-hidden"
+                  >
+                    {/* Top color indicator accent line */}
+                    <div
+                      className="absolute top-0 left-0 right-0 h-1 transition-all"
+                      style={{ backgroundColor: teamColor }}
+                    />
+
+                    <div>
+                      {/* Top Team Header with Badge */}
+                      <div className="flex items-start justify-between gap-3 pt-1">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-extrabold text-sm tracking-wider shadow-sm transition-transform group-hover:scale-105 shrink-0"
+                            style={{
+                              backgroundColor: teamColor,
+                              boxShadow: `0 4px 12px ${teamColor}35`,
+                            }}
+                          >
+                            {team.shortName || team.name.slice(0, 3).toUpperCase()}
+                          </div>
+
+                          <div className="min-w-0">
+                            <h3 className="font-bold text-base text-slate-900 dark:text-white truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                              {team.name}
+                            </h3>
+                            <span
+                              className="inline-block mt-0.5 px-2 py-0.5 rounded text-[10px] font-extrabold tracking-wide uppercase"
+                              style={{
+                                backgroundColor: `${teamColor}15`,
+                                color: teamColor,
+                                border: `1px solid ${teamColor}30`,
+                              }}
+                            >
+                              {team.shortName || 'OFICIAL'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Delete button */}
+                        <button
+                          onClick={() => {
+                            if (confirm(`¿Deseas desvincular al equipo "${team.name}" de este torneo?`)) {
+                              onDeleteTeam(team.id);
+                            }
+                          }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 opacity-70 group-hover:opacity-100 transition-all shrink-0"
+                          title="Eliminar equipo"
+                          aria-label={`Eliminar equipo ${team.name}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Team Details Box */}
+                      <div className="mt-4 p-3 rounded-xl bg-slate-50 dark:bg-[#070A0F]/70 border border-slate-200/80 dark:border-slate-800/60 space-y-2 text-xs">
+                        {/* Representative */}
+                        <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                          <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                          <span className="text-slate-500 dark:text-slate-400">Capitán:</span>
+                          <span className="font-semibold truncate">{team.representative}</span>
+                        </div>
+
+                        {/* Phone */}
+                        <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                          <Phone className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                          <span className="text-slate-500 dark:text-slate-400">Contacto:</span>
+                          <a
+                            href={team.phone.startsWith('+') ? `tel:${team.phone}` : undefined}
+                            className="font-medium truncate hover:text-emerald-500 transition-colors"
+                          >
+                            {team.phone}
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card Footer: Alta Date */}
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                      <span className="flex items-center gap-1.5">
+                        <Clock className="w-3 h-3 text-slate-400" />
+                        Alta: {formatDate(team.createdAt)}
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold text-[10px] uppercase">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Habilitado
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB CONTENT 2: ROL DE JUEGOS (PLACEHOLDER SOBRIO) */}
+      {activeTab === 'rol' && (
+        <div className="rounded-2xl p-6 sm:p-10 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+          <div className="max-w-2xl mx-auto text-center space-y-3">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-500 mx-auto flex items-center justify-center">
+              <CalendarDays className="w-7 h-7" />
+            </div>
+            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+              Próximamente: programación de jornadas
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+              El calendario oficial de partidos y emparejamientos automáticos (round-robin o eliminatoria) se habilitará una vez que se complete el registro de los {maxTeams} equipos del torneo.
+            </p>
+          </div>
+
+          {/* Visual Mockup Preview */}
+          <div className="max-w-3xl mx-auto pt-4 opacity-75 pointer-events-none select-none">
+            <div className="p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700/80 bg-slate-50/50 dark:bg-[#070A0F]/50 space-y-3">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <span>Jornada 1 • Simulada</span>
+                <span className="flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-emerald-500" />
+                  Módulo en desarrollo
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">
+                    {tournamentTeams[0]?.name || 'Equipo Local'}
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold">VS</span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">
+                    {tournamentTeams[1]?.name || 'Equipo Visitante'}
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-lg bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">
+                    {tournamentTeams[2]?.name || 'Equipo 3'}
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold">VS</span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">
+                    {tournamentTeams[3]?.name || 'Equipo 4'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB CONTENT 3: TABLA DE POSICIONES (PLACEHOLDER SOBRIO) */}
+      {activeTab === 'tabla' && (
+        <div className="rounded-2xl p-6 sm:p-10 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+          <div className="max-w-2xl mx-auto text-center space-y-3">
+            <div className="w-14 h-14 rounded-2xl bg-blue-500/10 text-blue-500 mx-auto flex items-center justify-center">
+              <Table className="w-7 h-7" />
+            </div>
+            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+              La tabla se generará con los resultados
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+              La clasificación general (puntos, partidos jugados, diferencia de goles y estadísticas ofensivas) se actualizará automáticamente conforme se disputen los encuentros.
+            </p>
+          </div>
+
+          {/* Visual Mockup Preview */}
+          <div className="max-w-3xl mx-auto pt-2 overflow-x-auto opacity-75 pointer-events-none select-none">
+            <div className="p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700/80 bg-slate-50/50 dark:bg-[#070A0F]/50">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider">
+                    <th className="pb-2">Pos</th>
+                    <th className="pb-2">Club</th>
+                    <th className="pb-2 text-center">JJ</th>
+                    <th className="pb-2 text-center">JG</th>
+                    <th className="pb-2 text-center">JE</th>
+                    <th className="pb-2 text-center">JP</th>
+                    <th className="pb-2 text-center">DIF</th>
+                    <th className="pb-2 text-center font-bold text-emerald-500">PTS</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200/60 dark:divide-slate-800/60 text-slate-600 dark:text-slate-400">
+                  {(tournamentTeams.slice(0, 4).length > 0
+                    ? tournamentTeams.slice(0, 4)
+                    : [
+                        { id: 'mock-1', name: 'Atlético Modelo', shortName: 'ATM' },
+                        { id: 'mock-2', name: 'Deportivo Montejo', shortName: 'DPM' },
+                      ]
+                  ).map((t, idx) => (
+                    <tr key={t.id}>
+                      <td className="py-2.5 font-bold text-slate-900 dark:text-white">{idx + 1}</td>
+                      <td className="py-2.5 font-semibold text-slate-800 dark:text-slate-200">{t.name}</td>
+                      <td className="py-2.5 text-center">0</td>
+                      <td className="py-2.5 text-center">0</td>
+                      <td className="py-2.5 text-center">0</td>
+                      <td className="py-2.5 text-center">0</td>
+                      <td className="py-2.5 text-center">0</td>
+                      <td className="py-2.5 text-center font-bold text-emerald-500">0</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB CONTENT 4: CÉDULAS ARBITRALES (PLACEHOLDER SOBRIO) */}
+      {activeTab === 'cedulas' && (
+        <div className="rounded-2xl p-6 sm:p-10 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+          <div className="max-w-2xl mx-auto text-center space-y-3">
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-500 mx-auto flex items-center justify-center">
+              <FileCheck className="w-7 h-7" />
+            </div>
+            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+              Control de partidos y arbitraje
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+              Módulo digital para captura en vivo de actas de juego, goles, tarjetas amarillas/rojas, incidentes y firma digital de los árbitros colegiados.
+            </p>
+          </div>
+
+          {/* Visual Mockup Preview */}
+          <div className="max-w-2xl mx-auto pt-2 opacity-75 pointer-events-none select-none">
+            <div className="p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700/80 bg-slate-50/50 dark:bg-[#070A0F]/50 space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-700 dark:text-slate-300">Cédula Oficial Electrónica</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                  Próxima Versión
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="p-2 rounded bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800">
+                  <span className="text-[10px] text-slate-400 block">Amonestaciones</span>
+                  <span className="font-bold text-amber-500">Control Tarjetas</span>
+                </div>
+                <div className="p-2 rounded bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800">
+                  <span className="text-[10px] text-slate-400 block">Goleo Individual</span>
+                  <span className="font-bold text-emerald-500">Minuto a Minuto</span>
+                </div>
+                <div className="p-2 rounded bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800">
+                  <span className="text-[10px] text-slate-400 block">Validación</span>
+                  <span className="font-bold text-blue-500">Firma Árbitro</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Team Modal */}
+      <NewTeamModal
+        isOpen={isNewTeamModalOpen}
+        tournamentId={tournament.id}
+        tournamentName={tournament.name}
+        onClose={() => setIsNewTeamModalOpen(false)}
+        onSave={(data) => {
+          onAddTeam(data);
+          setIsNewTeamModalOpen(false);
+        }}
+      />
+    </div>
+  );
+};

@@ -4,13 +4,17 @@ import { BottomNav } from './components/BottomNav';
 import { Hero } from './components/Hero';
 import { StatsCards } from './components/StatsCards';
 import { TournamentsView } from './components/TournamentsView';
+import { TournamentDetailView } from './components/TournamentDetailView';
 import { LiveScoresView } from './components/LiveScoresView';
 import { NewTournamentModal } from './components/NewTournamentModal';
 import { Tournament } from './types/tournament';
+import { Team } from './types/team';
+import { INITIAL_TEAMS } from './data/initialTeams';
 import { CheckCircle2, Shield } from 'lucide-react';
 import { ThemeProvider } from './context/ThemeContext';
 
 const STORAGE_KEY = 'atosport_tournaments';
+const TEAMS_STORAGE_KEY = 'atosport_teams';
 
 const INITIAL_TOURNAMENTS: Tournament[] = [
   {
@@ -61,6 +65,7 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
 
 function AppContent() {
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'tournaments' | 'scores'>('dashboard');
+  const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Load initial tournaments with localStorage synchronization
@@ -79,9 +84,25 @@ function AppContent() {
     return INITIAL_TOURNAMENTS;
   });
 
+  // Load teams with localStorage synchronization
+  const [teams, setTeams] = useState<Team[]>(() => {
+    try {
+      const saved = localStorage.getItem(TEAMS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Error loading teams from localStorage, using defaults:', e);
+    }
+    return INITIAL_TEAMS;
+  });
+
   const [notification, setNotification] = useState<string | null>(null);
 
-  // Sync state with localStorage on every change
+  // Sync tournaments with localStorage on every change
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(tournaments));
@@ -90,12 +111,35 @@ function AppContent() {
     }
   }, [tournaments]);
 
+  // Sync teams with localStorage on every change
+  useEffect(() => {
+    try {
+      localStorage.setItem(TEAMS_STORAGE_KEY, JSON.stringify(teams));
+    } catch (e) {
+      console.error('Error saving teams to localStorage:', e);
+    }
+  }, [teams]);
+
+  // Synchronize registered teams count with tournament stats
+  useEffect(() => {
+    setTournaments((prev) =>
+      prev.map((t) => {
+        const count = teams.filter((team) => team.tournamentId === t.id).length;
+        if (t.teamsCount !== count) {
+          return { ...t, teamsCount: count };
+        }
+        return t;
+      })
+    );
+  }, [teams]);
+
   const handleCreateTournament = (
     data: Omit<Tournament, 'id' | 'createdAt'>
   ) => {
     const newTournament: Tournament = {
       ...data,
       id: `t-${Date.now()}`,
+      teamsCount: 0,
       createdAt: new Date().toISOString(),
     };
 
@@ -109,10 +153,11 @@ function AppContent() {
       return updated;
     });
 
-    // Close modal, show toast and navigate directly to tournaments view
+    // Close modal, show toast, and select the newly created tournament directly
     setIsModalOpen(false);
+    setSelectedTournamentId(newTournament.id);
     setCurrentTab('tournaments');
-    setNotification(`¡Torneo "${data.name}" creado con éxito y guardado localmente!`);
+    setNotification(`¡Torneo "${data.name}" creado con éxito! Puedes inscribir equipos ahora.`);
     setTimeout(() => setNotification(null), 4500);
   };
 
@@ -127,9 +172,56 @@ function AppContent() {
       return updated;
     });
 
+    // Also remove any teams linked to this tournament
+    setTeams((prev) => {
+      const updated = prev.filter((team) => team.tournamentId !== id);
+      try {
+        localStorage.setItem(TEAMS_STORAGE_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.error('Error deleting tournament teams from localStorage:', e);
+      }
+      return updated;
+    });
+
+    if (selectedTournamentId === id) {
+      setSelectedTournamentId(null);
+    }
+
     setNotification('Torneo eliminado del registro.');
     setTimeout(() => setNotification(null), 3000);
   };
+
+  const handleAddTeam = (teamData: Omit<Team, 'id' | 'createdAt'>) => {
+    const newTeam: Team = {
+      ...teamData,
+      id: `team-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+
+    setTeams((prev) => [newTeam, ...prev]);
+
+    setNotification(`¡Equipo "${teamData.name}" inscrito exitosamente!`);
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  const handleDeleteTeam = (teamId: string) => {
+    const teamToRemove = teams.find((t) => t.id === teamId);
+    if (!teamToRemove) return;
+
+    setTeams((prev) => prev.filter((t) => t.id !== teamId));
+
+    setNotification(`Equipo "${teamToRemove.name}" eliminado del torneo.`);
+    setTimeout(() => setNotification(null), 3500);
+  };
+
+  const handleNavigate = (tab: 'dashboard' | 'tournaments' | 'scores') => {
+    setSelectedTournamentId(null);
+    setCurrentTab(tab);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Find currently active tournament for detail view
+  const selectedTournament = tournaments.find((t) => t.id === selectedTournamentId);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#070A0F] text-slate-900 dark:text-[#E2E8F0] flex flex-col font-sans transition-colors duration-200 selection:bg-emerald-500/20 selection:text-emerald-500 pb-20 md:pb-0">
@@ -144,36 +236,62 @@ function AppContent() {
       {/* Top Navbar */}
       <Navbar
         currentTab={currentTab}
-        onNavigate={setCurrentTab}
+        onNavigate={handleNavigate}
         onOpenNewTournament={() => setIsModalOpen(true)}
       />
 
       {/* Main Content Area */}
       <main className="flex-1">
-        {currentTab === 'dashboard' && (
-          <div className="space-y-4 sm:space-y-6">
-            <Hero
-              onOpenNewTournament={() => setIsModalOpen(true)}
-              onExploreTournaments={() => setCurrentTab('tournaments')}
-            />
-            <StatsCards tournaments={tournaments} />
-            <TournamentsView
-              tournaments={tournaments}
-              onOpenNewTournament={() => setIsModalOpen(true)}
-              onDeleteTournament={handleDeleteTournament}
-            />
-          </div>
-        )}
-
-        {currentTab === 'tournaments' && (
-          <TournamentsView
-            tournaments={tournaments}
-            onOpenNewTournament={() => setIsModalOpen(true)}
-            onDeleteTournament={handleDeleteTournament}
+        {selectedTournament ? (
+          <TournamentDetailView
+            tournament={selectedTournament}
+            teams={teams}
+            onBack={() => {
+              setSelectedTournamentId(null);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onAddTeam={handleAddTeam}
+            onDeleteTeam={handleDeleteTeam}
           />
-        )}
+        ) : (
+          <>
+            {currentTab === 'dashboard' && (
+              <div className="space-y-4 sm:space-y-6">
+                <Hero
+                  onOpenNewTournament={() => setIsModalOpen(true)}
+                  onExploreTournaments={() => {
+                    setSelectedTournamentId(null);
+                    setCurrentTab('tournaments');
+                  }}
+                />
+                <StatsCards tournaments={tournaments} />
+                <TournamentsView
+                  tournaments={tournaments}
+                  onOpenNewTournament={() => setIsModalOpen(true)}
+                  onDeleteTournament={handleDeleteTournament}
+                  onSelectTournament={(t) => {
+                    setSelectedTournamentId(t.id);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                />
+              </div>
+            )}
 
-        {currentTab === 'scores' && <LiveScoresView />}
+            {currentTab === 'tournaments' && (
+              <TournamentsView
+                tournaments={tournaments}
+                onOpenNewTournament={() => setIsModalOpen(true)}
+                onDeleteTournament={handleDeleteTournament}
+                onSelectTournament={(t) => {
+                  setSelectedTournamentId(t.id);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+              />
+            )}
+
+            {currentTab === 'scores' && <LiveScoresView />}
+          </>
+        )}
       </main>
 
       {/* Footer */}
@@ -193,7 +311,7 @@ function AppContent() {
       {/* Bottom Navigation Bar for Mobile */}
       <BottomNav
         currentTab={currentTab}
-        onNavigate={setCurrentTab}
+        onNavigate={handleNavigate}
         onOpenNewTournament={() => setIsModalOpen(true)}
       />
 

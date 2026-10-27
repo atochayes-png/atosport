@@ -19,12 +19,14 @@ interface TournamentsViewProps {
   tournaments: Tournament[];
   onOpenNewTournament: () => void;
   onDeleteTournament?: (id: string) => void;
+  onSelectTournament?: (tournament: Tournament) => void;
 }
 
 export const TournamentsView: React.FC<TournamentsViewProps> = ({
   tournaments,
   onOpenNewTournament,
   onDeleteTournament,
+  onSelectTournament,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -178,10 +180,11 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
             return (
               <div
                 key={tournament.id}
-                className="rounded-2xl p-5 sm:p-6 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700/80 shadow-sm hover:shadow-md dark:shadow-none dark:hover:shadow-card-dark transition-all duration-300 flex flex-col justify-between group relative overflow-hidden"
+                onClick={() => onSelectTournament?.(tournament)}
+                className="rounded-2xl p-5 sm:p-6 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 dark:hover:border-emerald-500/40 shadow-sm hover:shadow-lg dark:shadow-none dark:hover:shadow-card-dark transition-all duration-300 flex flex-col justify-between group relative overflow-hidden cursor-pointer hover:-translate-y-0.5"
               >
                 {newlyCreated && (
-                  <div className="absolute top-0 right-0 bg-gradient-to-l from-emerald-500 to-emerald-400 text-slate-950 text-[10px] font-extrabold uppercase px-3 py-0.5 rounded-bl-xl shadow-sm flex items-center gap-1">
+                  <div className="absolute top-0 right-0 bg-gradient-to-l from-emerald-500 to-emerald-400 text-slate-950 text-[10px] font-extrabold uppercase px-3 py-0.5 rounded-bl-xl shadow-sm flex items-center gap-1 z-10">
                     <Sparkles className="w-3 h-3" />
                     <span>Nuevo</span>
                   </div>
@@ -237,7 +240,11 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
                 {/* Card Actions */}
                 <div className="mt-5 sm:mt-6 pt-3.5 sm:pt-4 border-t border-slate-200 dark:border-slate-800/70 flex items-center justify-between gap-2">
                   <button
-                    onClick={() => alert(`Panel de administración abierto para: "${tournament.name}"\nSede: ${tournament.venue}\nDeporte: ${tournament.sport}`)}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectTournament?.(tournament);
+                    }}
                     className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 py-1.5 group/btn min-h-[38px]"
                   >
                     <span>Administrar Liga</span>
@@ -246,7 +253,9 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => {
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
                         navigator.clipboard?.writeText(window.location.href);
                         alert(`Enlace copiado al portapapeles para compartir el torneo: ${tournament.name}`);
                       }}
@@ -259,7 +268,9 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
                     {onDeleteTournament && (
                       <button
-                        onClick={() => {
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
                           if (confirm(`¿Estás seguro de eliminar el torneo "${tournament.name}"?`)) {
                             onDeleteTournament(tournament.id);
                           }
