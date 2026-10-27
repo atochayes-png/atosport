@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Trophy, MapPin, Calendar, Activity, Users } from 'lucide-react';
+import { X, Trophy, MapPin, Calendar, Activity, Users, AlertCircle } from 'lucide-react';
 import { SportType, Tournament, TournamentStatus } from '../types/tournament';
 
 interface NewTournamentModalProps {
@@ -35,6 +35,7 @@ export const NewTournamentModal: React.FC<NewTournamentModalProps> = ({
   const [season, setSeason] = useState('Apertura 2026');
   const [status, setStatus] = useState<TournamentStatus>('En Inscripciones');
   const [maxTeams, setMaxTeams] = useState<number>(16);
+  const [error, setError] = useState<string | null>(null);
 
   // Close on Escape key
   useEffect(() => {
@@ -44,6 +45,7 @@ export const NewTournamentModal: React.FC<NewTournamentModalProps> = ({
     if (isOpen) {
       window.addEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'hidden';
+      setError(null);
     }
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
@@ -55,16 +57,34 @@ export const NewTournamentModal: React.FC<NewTournamentModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !venue.trim()) return;
+    setError(null);
 
+    // Validations
+    if (!name.trim() || name.trim().length < 3) {
+      setError('El nombre del torneo debe tener al menos 3 caracteres.');
+      return;
+    }
+
+    if (!venue.trim() || venue.trim().length < 3) {
+      setError('Por favor indica la sede o cancha donde se jugará el torneo.');
+      return;
+    }
+
+    const parsedMaxTeams = Number(maxTeams);
+    if (isNaN(parsedMaxTeams) || parsedMaxTeams < 2 || parsedMaxTeams > 64) {
+      setError('El cupo de equipos debe estar entre 2 y 64.');
+      return;
+    }
+
+    // Save tournament
     onSave({
       name: name.trim(),
       sport,
       venue: venue.trim(),
-      season: season.trim() || 'Temporada 2026',
+      season: season.trim() || 'Apertura 2026',
       status,
       teamsCount: 0,
-      maxTeams: Number(maxTeams) || 16,
+      maxTeams: parsedMaxTeams,
     });
 
     // Reset and close
@@ -73,6 +93,7 @@ export const NewTournamentModal: React.FC<NewTournamentModalProps> = ({
     setSeason('Apertura 2026');
     setStatus('En Inscripciones');
     setMaxTeams(16);
+    setError(null);
     onClose();
   };
 
@@ -124,6 +145,14 @@ export const NewTournamentModal: React.FC<NewTournamentModalProps> = ({
 
         {/* Scrollable Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 space-y-4">
+          {/* Validation Error Message */}
+          {error && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 text-xs font-semibold animate-in fade-in duration-200">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
           {/* Nombre del Torneo */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
@@ -132,14 +161,17 @@ export const NewTournamentModal: React.FC<NewTournamentModalProps> = ({
             <input
               type="text"
               required
-              placeholder="Ej. Liga Premier Nocturna 2026"
+              placeholder="Ej. Liga Modelo de Veteranos 2026"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (error) setError(null);
+              }}
               className="w-full px-4 py-3 sm:py-2.5 rounded-xl bg-slate-50 dark:bg-[#070A0F] border border-slate-300 dark:border-slate-800 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors min-h-[44px]"
             />
           </div>
 
-          {/* Deporte y Estado en 2 columnas (1 col en móvil pequeño, 2 en sm+) */}
+          {/* Deporte y Estado en 2 columnas */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
@@ -182,18 +214,21 @@ export const NewTournamentModal: React.FC<NewTournamentModalProps> = ({
             </div>
           </div>
 
-          {/* Sede */}
+          {/* Sede / Cancha */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              Sede Principal de Encuentros *
+              Sede / Cancha Principal *
             </label>
             <div className="relative">
               <input
                 type="text"
                 required
-                placeholder="Ej. Deportivo Centenario, Cancha 1 y 2"
+                placeholder="Ej. Campos Escuela Modelo, Cancha 1"
                 value={venue}
-                onChange={(e) => setVenue(e.target.value)}
+                onChange={(e) => {
+                  setVenue(e.target.value);
+                  if (error) setError(null);
+                }}
                 className="w-full pl-10 pr-4 py-3 sm:py-2.5 rounded-xl bg-slate-50 dark:bg-[#070A0F] border border-slate-300 dark:border-slate-800 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors min-h-[44px]"
               />
               <MapPin className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -220,7 +255,7 @@ export const NewTournamentModal: React.FC<NewTournamentModalProps> = ({
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Cupo Máximo de Equipos
+                Límite de Equipos
               </label>
               <div className="relative">
                 <input
@@ -236,7 +271,7 @@ export const NewTournamentModal: React.FC<NewTournamentModalProps> = ({
             </div>
           </div>
 
-          {/* Sticky/Fixed Footer Actions to prevent mobile virtual keyboard cutoff */}
+          {/* Sticky/Fixed Footer Actions */}
           <div className="pt-4 pb-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3 sticky bottom-0 bg-white dark:bg-[#0B0F17]">
             <button
               type="button"
@@ -249,7 +284,7 @@ export const NewTournamentModal: React.FC<NewTournamentModalProps> = ({
               type="submit"
               className="px-6 py-3 sm:py-2.5 rounded-xl text-sm font-bold text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 shadow-md dark:shadow-emerald-glow transition-all min-h-[44px] flex-1 sm:flex-initial"
             >
-              Registrar Torneo
+              Crear Torneo
             </button>
           </div>
         </form>

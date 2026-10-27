@@ -9,18 +9,22 @@ import {
   Filter, 
   ArrowUpRight, 
   Share2, 
-  Activity 
+  Activity,
+  Trash2,
+  Sparkles
 } from 'lucide-react';
 import { Tournament, TournamentStatus } from '../types/tournament';
 
 interface TournamentsViewProps {
   tournaments: Tournament[];
   onOpenNewTournament: () => void;
+  onDeleteTournament?: (id: string) => void;
 }
 
 export const TournamentsView: React.FC<TournamentsViewProps> = ({
   tournaments,
   onOpenNewTournament,
+  onDeleteTournament,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -67,15 +71,29 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
     }
   };
 
+  const isRecent = (createdAt: string) => {
+    try {
+      const createdTime = new Date(createdAt).getTime();
+      return Date.now() - createdTime < 1000 * 60 * 30; // within 30 mins
+    } catch {
+      return false;
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8 transition-colors duration-200">
       {/* Header section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 sm:pb-6 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5 sm:gap-3">
-            <Trophy className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span>Gestión de Torneos</span>
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5 sm:gap-3">
+              <Trophy className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span>Gestión de Torneos</span>
+            </h2>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+              {tournaments.length} {tournaments.length === 1 ? 'Torneo' : 'Torneos'}
+            </span>
+          </div>
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">
             Administra ligas regulares, eliminatorias y cuadrangulares registrados en ATOSPORT.
           </p>
@@ -104,7 +122,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
           <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>
 
-        {/* Status Filter Buttons (Scrollable horizontally on mobile) */}
+        {/* Status Filter Buttons */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
           <Filter className="w-4 h-4 text-slate-400 dark:text-slate-500 mr-1 hidden sm:block shrink-0" />
           {[
@@ -128,12 +146,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
         </div>
       </div>
 
-      {/* Adaptive Grid:
-          - Mobile: 1 full column (grid-cols-1)
-          - Tablet: 2 balanced columns (md:grid-cols-2)
-          - Desktop: 3 columns (lg:grid-cols-3)
-          - Wide screens: 4 columns (2xl:grid-cols-4)
-      */}
+      {/* Grid de Torneos */}
       {filteredTournaments.length === 0 ? (
         <div className="text-center py-12 sm:py-16 px-4 rounded-2xl bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800/80 space-y-4 shadow-sm">
           <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-100 dark:bg-slate-800/60 mx-auto flex items-center justify-center text-slate-400 dark:text-slate-500">
@@ -160,15 +173,23 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
               100,
               Math.round((tournament.teamsCount / tournament.maxTeams) * 100)
             );
+            const newlyCreated = isRecent(tournament.createdAt);
 
             return (
               <div
                 key={tournament.id}
-                className="rounded-2xl p-5 sm:p-6 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700/80 shadow-sm hover:shadow-md dark:shadow-none dark:hover:shadow-card-dark transition-all duration-300 flex flex-col justify-between group"
+                className="rounded-2xl p-5 sm:p-6 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700/80 shadow-sm hover:shadow-md dark:shadow-none dark:hover:shadow-card-dark transition-all duration-300 flex flex-col justify-between group relative overflow-hidden"
               >
+                {newlyCreated && (
+                  <div className="absolute top-0 right-0 bg-gradient-to-l from-emerald-500 to-emerald-400 text-slate-950 text-[10px] font-extrabold uppercase px-3 py-0.5 rounded-bl-xl shadow-sm flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" />
+                    <span>Nuevo</span>
+                  </div>
+                )}
+
                 <div>
                   {/* Top card bar */}
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start justify-between gap-2 pt-1">
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-100 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/50">
                       <Activity className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                       {tournament.sport}
@@ -216,21 +237,41 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
                 {/* Card Actions */}
                 <div className="mt-5 sm:mt-6 pt-3.5 sm:pt-4 border-t border-slate-200 dark:border-slate-800/70 flex items-center justify-between gap-2">
                   <button
-                    onClick={() => alert(`Abriendo panel de administración para: ${tournament.name}`)}
+                    onClick={() => alert(`Panel de administración abierto para: "${tournament.name}"\nSede: ${tournament.venue}\nDeporte: ${tournament.sport}`)}
                     className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 py-1.5 group/btn min-h-[38px]"
                   >
                     <span>Administrar Liga</span>
                     <ArrowUpRight className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
                   </button>
 
-                  <button
-                    onClick={() => alert(`Enlace público copiado para compartir el torneo: ${tournament.name}`)}
-                    className="p-2 sm:p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors min-w-[38px] min-h-[38px] flex items-center justify-center"
-                    title="Compartir enlace de torneo"
-                    aria-label="Compartir enlace"
-                  >
-                    <Share2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard?.writeText(window.location.href);
+                        alert(`Enlace copiado al portapapeles para compartir el torneo: ${tournament.name}`);
+                      }}
+                      className="p-2 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+                      title="Compartir enlace de torneo"
+                      aria-label="Compartir enlace"
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </button>
+
+                    {onDeleteTournament && (
+                      <button
+                        onClick={() => {
+                          if (confirm(`¿Estás seguro de eliminar el torneo "${tournament.name}"?`)) {
+                            onDeleteTournament(tournament.id);
+                          }
+                        }}
+                        className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+                        title="Eliminar torneo"
+                        aria-label="Eliminar torneo"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );

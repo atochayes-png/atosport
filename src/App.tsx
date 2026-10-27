@@ -10,6 +10,8 @@ import { Tournament } from './types/tournament';
 import { CheckCircle2, Shield } from 'lucide-react';
 import { ThemeProvider } from './context/ThemeContext';
 
+const STORAGE_KEY = 'atosport_tournaments';
+
 const INITIAL_TOURNAMENTS: Tournament[] = [
   {
     id: 't-1',
@@ -20,7 +22,7 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
     status: 'Activo',
     teamsCount: 14,
     maxTeams: 16,
-    createdAt: new Date().toISOString(),
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
   },
   {
     id: 't-2',
@@ -31,7 +33,7 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
     status: 'En Inscripciones',
     teamsCount: 8,
     maxTeams: 20,
-    createdAt: new Date().toISOString(),
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
   },
   {
     id: 't-3',
@@ -42,7 +44,7 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
     status: 'Próximo',
     teamsCount: 6,
     maxTeams: 12,
-    createdAt: new Date().toISOString(),
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString(),
   },
   {
     id: 't-4',
@@ -53,29 +55,39 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
     status: 'Activo',
     teamsCount: 10,
     maxTeams: 12,
-    createdAt: new Date().toISOString(),
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 96).toISOString(),
   },
 ];
 
 function AppContent() {
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'tournaments' | 'scores'>('dashboard');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Load initial tournaments with localStorage synchronization
   const [tournaments, setTournaments] = useState<Tournament[]>(() => {
-    const saved = localStorage.getItem('atosport_tournaments');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return INITIAL_TOURNAMENTS;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
       }
+    } catch (e) {
+      console.warn('Error loading tournaments from localStorage, using defaults:', e);
     }
     return INITIAL_TOURNAMENTS;
   });
 
   const [notification, setNotification] = useState<string | null>(null);
 
+  // Sync state with localStorage on every change
   useEffect(() => {
-    localStorage.setItem('atosport_tournaments', JSON.stringify(tournaments));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tournaments));
+    } catch (e) {
+      console.error('Error saving tournaments to localStorage:', e);
+    }
   }, [tournaments]);
 
   const handleCreateTournament = (
@@ -87,9 +99,36 @@ function AppContent() {
       createdAt: new Date().toISOString(),
     };
 
-    setTournaments((prev) => [newTournament, ...prev]);
-    setNotification(`Torneo "${data.name}" creado con éxito.`);
-    setTimeout(() => setNotification(null), 4000);
+    setTournaments((prev) => {
+      const updated = [newTournament, ...prev];
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.error('Error saving new tournament to localStorage:', e);
+      }
+      return updated;
+    });
+
+    // Close modal, show toast and navigate directly to tournaments view
+    setIsModalOpen(false);
+    setCurrentTab('tournaments');
+    setNotification(`¡Torneo "${data.name}" creado con éxito y guardado localmente!`);
+    setTimeout(() => setNotification(null), 4500);
+  };
+
+  const handleDeleteTournament = (id: string) => {
+    setTournaments((prev) => {
+      const updated = prev.filter((t) => t.id !== id);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.error('Error updating localStorage after tournament delete:', e);
+      }
+      return updated;
+    });
+
+    setNotification('Torneo eliminado del registro.');
+    setTimeout(() => setNotification(null), 3000);
   };
 
   return (
@@ -102,7 +141,7 @@ function AppContent() {
         </div>
       )}
 
-      {/* Top Navbar for Desktop & Mobile Header */}
+      {/* Top Navbar */}
       <Navbar
         currentTab={currentTab}
         onNavigate={setCurrentTab}
@@ -121,6 +160,7 @@ function AppContent() {
             <TournamentsView
               tournaments={tournaments}
               onOpenNewTournament={() => setIsModalOpen(true)}
+              onDeleteTournament={handleDeleteTournament}
             />
           </div>
         )}
@@ -129,6 +169,7 @@ function AppContent() {
           <TournamentsView
             tournaments={tournaments}
             onOpenNewTournament={() => setIsModalOpen(true)}
+            onDeleteTournament={handleDeleteTournament}
           />
         )}
 
@@ -156,7 +197,7 @@ function AppContent() {
         onOpenNewTournament={() => setIsModalOpen(true)}
       />
 
-      {/* Responsive New Tournament Modal / Bottom Sheet */}
+      {/* Responsive New Tournament Modal */}
       <NewTournamentModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
