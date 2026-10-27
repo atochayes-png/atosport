@@ -10,8 +10,21 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Anti-flicker Theme Initialization -->
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('atosport_theme');
+          if (saved === 'light') {
+            document.documentElement.classList.remove('dark');
+          } else {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="bg-[#070A0F] text-[#E2E8F0] antialiased selection:bg-emerald-500/20 selection:text-emerald-400">
+  <body class="bg-[#F8FAFC] text-slate-900 dark:bg-[#070A0F] dark:text-[#E2E8F0] antialiased transition-colors duration-200 selection:bg-emerald-500/20 selection:text-emerald-500">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

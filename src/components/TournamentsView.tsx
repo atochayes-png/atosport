@@ -39,28 +39,28 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
     switch (status) {
       case 'Activo':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
             Activo
           </span>
         );
       case 'En Inscripciones':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-100 dark:bg-blue-500/10 text-blue-800 dark:text-blue-400 border border-blue-300 dark:border-blue-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-blue-400" />
             En Inscripciones
           </span>
         );
       case 'Próximo':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-100 dark:bg-amber-500/10 text-amber-800 dark:text-amber-400 border border-amber-300 dark:border-amber-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 dark:bg-amber-400" />
             Próximo
           </span>
         );
       case 'Finalizado':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 border border-slate-700">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-700">
             Finalizado
           </span>
         );
@@ -68,22 +68,22 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 transition-colors duration-200">
       {/* Header section */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
-            <Trophy className="w-7 h-7 text-emerald-400" />
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+            <Trophy className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
             <span>Gestión de Torneos</span>
           </h2>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
             Administra ligas regulares, eliminatorias y cuadrangulares registrados en ATOSPORT.
           </p>
         </div>
 
         <button
           onClick={onOpenNewTournament}
-          className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 shadow-emerald-glow transition-all"
+          className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 shadow-md dark:shadow-emerald-glow transition-all"
         >
           <Plus className="w-5 h-5 stroke-[2.5]" />
           <span>+ Nuevo Torneo</span>
@@ -99,14 +99,14 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
             placeholder="Buscar por nombre, deporte o sede..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B0F17] border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 shadow-sm transition-colors"
           />
-          <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
         </div>
 
         {/* Status Filter Buttons */}
         <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
-          <Filter className="w-4 h-4 text-slate-500 mr-1 hidden sm:block shrink-0" />
+          <Filter className="w-4 h-4 text-slate-400 dark:text-slate-500 mr-1 hidden sm:block shrink-0" />
           {[
             { id: 'all', label: 'Todos' },
             { id: 'Activo', label: 'Activos' },
@@ -119,7 +119,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
                 statusFilter === item.id
                   ? 'bg-emerald-500 text-slate-950 shadow-sm'
-                  : 'bg-[#0B0F17] text-slate-400 hover:text-white border border-slate-800'
+                  : 'bg-white dark:bg-[#0B0F17] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800 shadow-sm'
               }`}
             >
               {item.label}
@@ -130,19 +130,19 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
       {/* Torneos Grid */}
       {filteredTournaments.length === 0 ? (
-        <div className="text-center py-16 px-4 rounded-2xl bg-[#0B0F17] border border-slate-800/80 space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-slate-800/60 mx-auto flex items-center justify-center text-slate-500">
+        <div className="text-center py-16 px-4 rounded-2xl bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800/80 space-y-4 shadow-sm">
+          <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800/60 mx-auto flex items-center justify-center text-slate-400 dark:text-slate-500">
             <Trophy className="w-8 h-8" />
           </div>
-          <h3 className="text-lg font-bold text-white">No se encontraron torneos</h3>
-          <p className="text-sm text-slate-400 max-w-md mx-auto">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white">No se encontraron torneos</h3>
+          <p className="text-sm text-slate-600 dark:text-slate-400 max-w-md mx-auto">
             {searchTerm || statusFilter !== 'all'
               ? 'Intenta cambiar los términos de búsqueda o filtros seleccionados.'
               : 'Aún no has registrado torneos. Comienza creando tu primer torneo oficial.'}
           </p>
           <button
             onClick={onOpenNewTournament}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-xs text-slate-950 bg-emerald-400 hover:bg-emerald-300 transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-xs text-slate-950 bg-emerald-400 hover:bg-emerald-300 transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4" />
             Crear Torneo Ahora
@@ -159,13 +159,13 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
             return (
               <div
                 key={tournament.id}
-                className="rounded-2xl p-6 bg-[#0B0F17] border border-slate-800 hover:border-slate-700/80 hover:shadow-card-dark transition-all duration-300 flex flex-col justify-between group"
+                className="rounded-2xl p-6 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700/80 shadow-sm hover:shadow-md dark:shadow-none dark:hover:shadow-card-dark transition-all duration-300 flex flex-col justify-between group"
               >
                 <div>
                   {/* Top card bar */}
                   <div className="flex items-start justify-between gap-3">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-800/60 text-slate-300 border border-slate-700/50">
-                      <Activity className="w-3 h-3 text-emerald-400" />
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-100 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/50">
+                      <Activity className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                       {tournament.sport}
                     </span>
                     {getStatusBadge(tournament.status)}
@@ -173,33 +173,33 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
                   {/* Title & Season */}
                   <div className="mt-4">
-                    <h3 className="text-lg font-bold text-white group-hover:text-emerald-400 transition-colors line-clamp-1">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors line-clamp-1">
                       {tournament.name}
                     </h3>
-                    <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
-                      <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      <Calendar className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                       <span>{tournament.season}</span>
                     </div>
                   </div>
 
                   {/* Sede Info */}
-                  <div className="mt-4 p-3 rounded-xl bg-[#070A0F]/70 border border-slate-800/60 flex items-center gap-2.5 text-xs text-slate-300">
-                    <MapPin className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <div className="mt-4 p-3 rounded-xl bg-slate-50 dark:bg-[#070A0F]/70 border border-slate-200 dark:border-slate-800/60 flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300">
+                    <MapPin className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                     <span className="truncate">{tournament.venue}</span>
                   </div>
 
                   {/* Teams Progress */}
                   <div className="mt-5 space-y-2">
                     <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-400 flex items-center gap-1.5">
-                        <Users className="w-3.5 h-3.5 text-slate-500" />
+                      <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                         Equipos Registrados
                       </span>
-                      <span className="font-semibold text-white">
+                      <span className="font-semibold text-slate-900 dark:text-white">
                         {tournament.teamsCount} / {tournament.maxTeams}
                       </span>
                     </div>
-                    <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-500"
                         style={{ width: `${teamPercent}%` }}
@@ -209,10 +209,10 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
                 </div>
 
                 {/* Card Actions */}
-                <div className="mt-6 pt-4 border-t border-slate-800/70 flex items-center justify-between gap-2">
+                <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800/70 flex items-center justify-between gap-2">
                   <button
                     onClick={() => alert(`Abriendo panel de administración para: ${tournament.name}`)}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 group/btn"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 group/btn"
                   >
                     <span>Administrar Liga</span>
                     <ArrowUpRight className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
@@ -220,7 +220,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
 
                   <button
                     onClick={() => alert(`Enlace público copiado para compartir el torneo: ${tournament.name}`)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                     title="Compartir enlace de torneo"
                   >
                     <Share2 className="w-4 h-4" />

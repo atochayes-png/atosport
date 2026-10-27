@@ -7,6 +7,7 @@ import { LiveScoresView } from './components/LiveScoresView';
 import { NewTournamentModal } from './components/NewTournamentModal';
 import { Tournament } from './types/tournament';
 import { CheckCircle2, Shield } from 'lucide-react';
+import { ThemeProvider } from './context/ThemeContext';
 
 const INITIAL_TOURNAMENTS: Tournament[] = [
   {
@@ -55,7 +56,7 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
   },
 ];
 
-export function App() {
+function AppContent() {
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'tournaments' | 'scores'>('dashboard');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [tournaments, setTournaments] = useState<Tournament[]>(() => {
@@ -91,11 +92,11 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070A0F] text-[#E2E8F0] flex flex-col font-sans selection:bg-emerald-500/20 selection:text-emerald-400">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#070A0F] text-slate-900 dark:text-[#E2E8F0] flex flex-col font-sans transition-colors duration-200 selection:bg-emerald-500/20 selection:text-emerald-500">
       {/* Toast Notification */}
       {notification && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-900 border border-emerald-500/50 text-white shadow-emerald-glow animate-in slide-in-from-bottom duration-300">
-          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-emerald-500/50 text-slate-900 dark:text-white shadow-xl dark:shadow-emerald-glow animate-in slide-in-from-bottom duration-300">
+          <CheckCircle2 className="w-5 h-5 text-emerald-500 dark:text-emerald-400 shrink-0" />
           <span className="text-xs font-semibold">{notification}</span>
         </div>
       )}
@@ -134,11 +135,11 @@ export function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800/80 bg-[#070A0F] py-8 mt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+      <footer className="border-t border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#070A0F] py-8 mt-16 transition-colors duration-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
           <div className="flex items-center gap-2">
-            <Shield className="w-4 h-4 text-emerald-400" />
-            <span className="font-semibold text-slate-400">ATOSPORT SaaS</span>
+            <Shield className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <span className="font-semibold text-slate-700 dark:text-slate-300">ATOSPORT SaaS</span>
             <span>— Plataforma Deportiva Profesional</span>
           </div>
           <div>
@@ -154,6 +155,14 @@ export function App() {
         onSave={handleCreateTournament}
       />
     </div>
+  );
+}
+
+export function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
 
