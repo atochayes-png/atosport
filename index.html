@@ -2,10 +2,41 @@
 <html lang="es" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310B981'><path d='M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2zm1 17.93V18a2 2 0 0 0-2-2h-1v-2h2a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H9v-2h1a2 2 0 0 0 2-2V4.07A8.007 8.007 0 0 1 20 12a7.95 7.95 0 0 1-7 7.93z'/></svg>" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
     <title>ATOSPORT - Plataforma de Gestión Deportiva</title>
     <meta name="description" content="SaaS de Alto Rendimiento para Gestión de Ligas, Torneos, Cédulas Arbitrales y Marcadores en Tiempo Real." />
+
+    <!-- PWA Web App Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Mobile PWA & iOS Meta Tags -->
+    <meta name="theme-color" content="#070A0F" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ATOSPORT" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="ATOSPORT" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png" />
+
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js').then(
+            function(registration) {
+              console.log('ATOSPORT ServiceWorker registrado con alcance: ', registration.scope);
+            },
+            function(err) {
+              console.warn('ATOSPORT ServiceWorker fallo al registrarse: ', err);
+            }
+          );
+        });
+      }
+    </script>
+
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

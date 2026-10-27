@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Trophy, Plus, Activity, Calendar, ShieldCheck, Sun, Moon, Menu, X, Sparkles } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { InstallPwaButton } from './InstallPwaButton';
 
 interface NavbarProps {
   currentTab: 'dashboard' | 'tournaments' | 'scores';
@@ -102,6 +103,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="hidden md:inline">Modo</span> Organizador
             </div>
 
+            {/* Install PWA Button (Desktop & Tablet) */}
+            <InstallPwaButton />
+
             {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
@@ -191,7 +195,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
 
             {/* Mobile Menu Action */}
-            <div className="pt-3 border-t border-slate-200 dark:border-slate-800/80 flex flex-col gap-2">
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800/80 flex flex-col gap-2.5">
+              <InstallPwaButton isMobileMenu={true} />
+
               <button
                 onClick={handleMobileCreate}
                 className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-md active:scale-95 transition-all"

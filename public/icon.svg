@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A" />
+      <stop offset="50%" stop-color="#070A0F" />
+      <stop offset="100%" stop-color="#05080D" />
+    </linearGradient>
+
+    <!-- Emerald Primary Gradient -->
+    <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34D399" />
+      <stop offset="50%" stop-color="#10B981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+
+    <!-- Accent Gold/Glow Gradient -->
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#10B981" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#10B981" stop-opacity="0" />
+    </linearGradient>
+
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background Base with Rounded Corners -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+
+  <!-- Outer Glow Border -->
+  <rect x="12" y="12" width="488" height="488" rx="100" fill="none" stroke="url(#emeraldGrad)" stroke-width="4" stroke-opacity="0.4" />
+
+  <!-- Background Ambient Glow -->
+  <circle cx="256" cy="240" r="140" fill="url(#glowGrad)" />
+
+  <!-- Main Trophy & Shield Icon Group -->
+  <g transform="translate(0, 8)" filter="url(#glow)">
+    <!-- Central Shield Contour -->
+    <path
+      d="M256 90 L370 140 C370 240 320 330 256 370 C192 330 142 240 142 140 Z"
+      fill="#0B0F17"
+      stroke="url(#emeraldGrad)"
+      stroke-width="12"
+      stroke-linejoin="round"
+    />
+
+    <!-- Inner Shield Accent -->
+    <path
+      d="M256 118 L346 158 C346 234 308 304 256 338 C204 304 166 234 166 158 Z"
+      fill="url(#emeraldGrad)"
+      fill-opacity="0.15"
+    />
+
+    <!-- Trophy Cup Graphic -->
+    <!-- Handles -->
+    <path
+      d="M196 180 C172 180 160 200 160 220 C160 245 180 260 205 260"
+      fill="none"
+      stroke="url(#emeraldGrad)"
+      stroke-width="10"
+      stroke-linecap="round"
+    />
+    <path
+      d="M316 180 C340 180 352 200 352 220 C352 245 332 260 307 260"
+      fill="none"
+      stroke="url(#emeraldGrad)"
+      stroke-width="10"
+      stroke-linecap="round"
+    />
+
+    <!-- Cup Body -->
+    <path
+      d="M200 170 L312 170 L300 245 C295 275 275 290 256 290 C237 290 217 275 212 245 Z"
+      fill="url(#emeraldGrad)"
+    />
+
+    <!-- Cup Rim Highlight -->
+    <ellipse cx="256" cy="170" rx="56" ry="8" fill="#6EE7B7" />
+
+    <!-- Stem & Base -->
+    <path d="M248 290 L264 290 L268 316 L244 316 Z" fill="#34D399" />
+    <rect x="232" y="316" width="48" height="12" rx="4" fill="#059669" />
+
+    <!-- Star on the Trophy -->
+    <path
+      d="M256 200 L261 216 L278 216 L264 226 L269 242 L256 232 L243 242 L248 226 L234 216 L251 216 Z"
+      fill="#070A0F"
+    />
+
+    <!-- Speed Lines / Lightning Sparkles -->
+    <circle cx="200" cy="130" r="5" fill="#34D399" />
+    <circle cx="312" cy="130" r="5" fill="#34D399" />
+  </g>
+
+  <!-- Brand Typography Pill -->
+  <g transform="translate(256, 428)">
+    <rect x="-105" y="-22" width="210" height="40" rx="20" fill="#0B0F17" stroke="url(#emeraldGrad)" stroke-width="3" />
+    <text
+      x="0"
+      y="6"
+      text-anchor="middle"
+      fill="#E2E8F0"
+      font-family="system-ui, -apple-system, sans-serif"
+      font-weight="900"
+      font-size="22"
+      letter-spacing="4"
+    >
+      ATOSPORT
+    </text>
+  </g>
+</svg>
