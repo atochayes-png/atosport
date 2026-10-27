@@ -18,34 +18,70 @@ import {
   Share2, 
   Activity,
   Clock,
-  Sparkles
+  Swords,
+  AlertCircle
 } from 'lucide-react';
 import { Tournament, TournamentStatus } from '../types/tournament';
 import { Team, TournamentDetailTab } from '../types/team';
+import { Match, Matchday } from '../types/match';
 import { NewTeamModal } from './NewTeamModal';
+import { NewMatchModal } from './NewMatchModal';
 
 interface TournamentDetailViewProps {
   tournament: Tournament;
   teams: Team[];
+  matchdays: Matchday[];
+  matches: Match[];
   onBack: () => void;
   onAddTeam: (team: Omit<Team, 'id' | 'createdAt'>) => void;
   onDeleteTeam: (teamId: string) => void;
+  onAddMatchday: (tournamentId: string) => void;
+  onAddMatch: (match: Omit<Match, 'id' | 'createdAt'>) => void;
+  onDeleteMatch: (matchId: string) => void;
 }
 
 export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
   tournament,
   teams,
+  matchdays,
+  matches,
   onBack,
   onAddTeam,
   onDeleteTeam,
+  onAddMatchday,
+  onAddMatch,
+  onDeleteMatch,
 }) => {
   const [activeTab, setActiveTab] = useState<TournamentDetailTab>('equipos');
   const [searchTerm, setSearchTerm] = useState('');
   const [isNewTeamModalOpen, setIsNewTeamModalOpen] = useState(false);
+  const [isNewMatchModalOpen, setIsNewMatchModalOpen] = useState(false);
   const [copyToast, setCopyToast] = useState(false);
 
   // Filter teams registered for this specific tournament
   const tournamentTeams = teams.filter((t) => t.tournamentId === tournament.id);
+
+  // Filter matchdays and matches for this tournament
+  const tournamentMatchdays = matchdays
+    .filter((md) => md.tournamentId === tournament.id)
+    .sort((a, b) => a.number - b.number);
+
+  const tournamentMatches = matches.filter((m) => m.tournamentId === tournament.id);
+
+  // Active matchday state (defaults to first matchday or 1)
+  const [selectedMatchdayNumber, setSelectedMatchdayNumber] = useState<number>(() => {
+    return tournamentMatchdays.length > 0 ? tournamentMatchdays[0].number : 1;
+  });
+
+  // Make sure selectedMatchdayNumber exists if matchdays update
+  const effectiveMatchdayNumber = tournamentMatchdays.some((md) => md.number === selectedMatchdayNumber)
+    ? selectedMatchdayNumber
+    : (tournamentMatchdays[0]?.number || 1);
+
+  // Matches for current matchday
+  const currentMatchdayMatches = tournamentMatches.filter(
+    (m) => m.matchdayNumber === effectiveMatchdayNumber
+  );
 
   // Search filter inside the tournament's teams
   const filteredTeams = tournamentTeams.filter((team) => {
@@ -79,6 +115,23 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
       });
     } catch {
       return 'Reciente';
+    }
+  };
+
+  const formatMatchDate = (dateStr: string) => {
+    try {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        return d.toLocaleDateString('es-MX', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+        });
+      }
+      return dateStr;
+    } catch {
+      return dateStr;
     }
   };
 
@@ -253,7 +306,7 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
               id: 'rol' as TournamentDetailTab,
               label: 'Rol de Juegos',
               icon: CalendarDays,
-              badge: 'Próx',
+              badge: tournamentMatches.length > 0 ? `${tournamentMatches.length}` : 'Activo',
             },
             {
               id: 'tabla' as TournamentDetailTab,
@@ -480,55 +533,252 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
         </div>
       )}
 
-      {/* TAB CONTENT 2: ROL DE JUEGOS (PLACEHOLDER SOBRIO) */}
+      {/* TAB CONTENT 2: ROL DE JUEGOS (ACTIVO Y COMPLETO) */}
       {activeTab === 'rol' && (
-        <div className="rounded-2xl p-6 sm:p-10 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
-          <div className="max-w-2xl mx-auto text-center space-y-3">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-500 mx-auto flex items-center justify-center">
-              <CalendarDays className="w-7 h-7" />
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Subheader: Jornadas Horizontal Tabs + Actions */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <CalendarDays className="w-5 h-5 text-emerald-500" />
+                <span>Programación de Jornadas</span>
+              </h2>
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                {tournamentMatchdays.length} {tournamentMatchdays.length === 1 ? 'Jornada' : 'Jornadas'}
+              </span>
             </div>
-            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-              Próximamente: programación de jornadas
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-              El calendario oficial de partidos y emparejamientos automáticos (round-robin o eliminatoria) se habilitará una vez que se complete el registro de los {maxTeams} equipos del torneo.
-            </p>
+
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => {
+                  onAddMatchday(tournament.id);
+                  const nextNumber = tournamentMatchdays.length > 0 
+                    ? Math.max(...tournamentMatchdays.map((m) => m.number)) + 1 
+                    : 1;
+                  setSelectedMatchdayNumber(nextNumber);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 bg-white dark:bg-[#0B0F17] hover:bg-slate-50 dark:hover:bg-slate-800/80 border border-slate-200 dark:border-slate-800 shadow-sm transition-all min-h-[38px]"
+              >
+                <Plus className="w-3.5 h-3.5 text-emerald-500 stroke-[3]" />
+                <span>+ Nueva Jornada</span>
+              </button>
+
+              <button
+                onClick={() => setIsNewMatchModalOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 shadow-md dark:shadow-emerald-glow transition-all min-h-[38px]"
+              >
+                <Swords className="w-4 h-4 stroke-[2.5]" />
+                <span>+ Programar Partido</span>
+              </button>
+            </div>
           </div>
 
-          {/* Visual Mockup Preview */}
-          <div className="max-w-3xl mx-auto pt-4 opacity-75 pointer-events-none select-none">
-            <div className="p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700/80 bg-slate-50/50 dark:bg-[#070A0F]/50 space-y-3">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
-                <span>Jornada 1 • Simulada</span>
-                <span className="flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-emerald-500" />
-                  Módulo en desarrollo
+          {/* Interactive Jornadas Tab Selector */}
+          {tournamentMatchdays.length === 0 ? (
+            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>Aún no hay jornadas registradas para este torneo.</span>
+              </div>
+              <button
+                onClick={() => {
+                  onAddMatchday(tournament.id);
+                  setSelectedMatchdayNumber(1);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-400 transition-colors"
+              >
+                Crear Jornada 1
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+              {tournamentMatchdays.map((md) => {
+                const isSelected = md.number === effectiveMatchdayNumber;
+                const matchesCount = tournamentMatches.filter((m) => m.matchdayNumber === md.number).length;
+
+                return (
+                  <button
+                    key={md.id}
+                    onClick={() => setSelectedMatchdayNumber(md.number)}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all border ${
+                      isSelected
+                        ? 'bg-emerald-500 text-slate-950 border-emerald-500 shadow-sm'
+                        : 'bg-white dark:bg-[#0B0F17] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                    }`}
+                  >
+                    <span>{md.name}</span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold ${
+                        isSelected
+                          ? 'bg-slate-950/20 text-slate-950'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                      }`}
+                    >
+                      {matchesCount}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Current Matchday Banner & Action */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-[#070A0F]/70 border border-slate-200/80 dark:border-slate-800/80">
+            <div>
+              <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white flex items-center gap-2">
+                <span>Jornada {effectiveMatchdayNumber}</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
+                  {currentMatchdayMatches.length}{' '}
+                  {currentMatchdayMatches.length === 1 ? 'partido programado' : 'partidos programados'}
                 </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="p-3 rounded-lg bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">
-                    {tournamentTeams[0]?.name || 'Equipo Local'}
-                  </span>
-                  <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold">VS</span>
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">
-                    {tournamentTeams[1]?.name || 'Equipo Visitante'}
-                  </span>
-                </div>
-
-                <div className="p-3 rounded-lg bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">
-                    {tournamentTeams[2]?.name || 'Equipo 3'}
-                  </span>
-                  <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold">VS</span>
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">
-                    {tournamentTeams[3]?.name || 'Equipo 4'}
-                  </span>
-                </div>
-              </div>
+              </h3>
             </div>
+
+            <button
+              onClick={() => setIsNewMatchModalOpen(true)}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors self-start sm:self-auto"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Programar otro partido en esta jornada</span>
+            </button>
           </div>
+
+          {/* Matches List Grid */}
+          {currentMatchdayMatches.length === 0 ? (
+            <div className="text-center py-14 px-4 rounded-2xl bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800/80 space-y-4 shadow-sm">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-500 mx-auto flex items-center justify-center">
+                <Swords className="w-7 h-7" />
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+                No hay partidos programados para la Jornada {effectiveMatchdayNumber}
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-md mx-auto">
+                Selecciona dos clubes de la liga, define la fecha, hora y cancha para armar el fixture oficial.
+              </p>
+              <button
+                onClick={() => setIsNewMatchModalOpen(true)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-slate-950 bg-emerald-400 hover:bg-emerald-300 transition-colors shadow-sm"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span>Programar Primer Partido</span>
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3.5">
+              {currentMatchdayMatches.map((match) => {
+                const homeTeam = teams.find((t) => t.id === match.homeTeamId);
+                const awayTeam = teams.find((t) => t.id === match.awayTeamId);
+
+                const homeColor = homeTeam?.color || '#10B981';
+                const awayColor = awayTeam?.color || '#2563EB';
+
+                return (
+                  <div
+                    key={match.id}
+                    className="group rounded-2xl p-4 sm:p-5 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700/80 shadow-sm hover:shadow-md dark:shadow-none dark:hover:shadow-card-dark transition-all duration-300 relative overflow-hidden"
+                  >
+                    {/* Status accent side bar */}
+                    <div className="absolute top-0 bottom-0 left-0 w-1.5 bg-gradient-to-b from-emerald-500 to-teal-500" />
+
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pl-2">
+                      {/* Left: Home Team */}
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div
+                          className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-white font-black text-xs sm:text-sm tracking-wider shadow-sm shrink-0"
+                          style={{
+                            backgroundColor: homeColor,
+                            boxShadow: `0 4px 12px ${homeColor}30`,
+                          }}
+                        >
+                          {homeTeam?.shortName || 'LOC'}
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 block tracking-wider">
+                            Local
+                          </span>
+                          <h4 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white truncate">
+                            {homeTeam?.name || 'Equipo Local'}
+                          </h4>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate block">
+                            Cap: {homeTeam?.representative || 'Por definir'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Center: Match Details & VS */}
+                      <div className="flex flex-col items-center justify-center py-2 px-3 sm:px-6 rounded-xl bg-slate-50 dark:bg-[#070A0F]/60 border border-slate-200/80 dark:border-slate-800/60 shrink-0 text-center">
+                        {/* Status Badge */}
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 mb-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          {match.status}
+                        </span>
+
+                        {/* Time & VS */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
+                            {match.time} hrs
+                          </span>
+                        </div>
+
+                        {/* Date and Field */}
+                        <div className="flex items-center gap-2 text-[11px] text-slate-600 dark:text-slate-400 mt-1 font-medium">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3 text-slate-400" />
+                            {formatMatchDate(match.date)}
+                          </span>
+                          <span>•</span>
+                          <span className="flex items-center gap-1 truncate max-w-[150px]">
+                            <MapPin className="w-3 h-3 text-emerald-500 shrink-0" />
+                            {match.field}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Right: Away Team */}
+                      <div className="flex items-center justify-start md:justify-end gap-3 flex-1 min-w-0 md:text-right">
+                        <div className="min-w-0 order-2 md:order-1">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 block tracking-wider">
+                            Visitante
+                          </span>
+                          <h4 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white truncate">
+                            {awayTeam?.name || 'Equipo Visitante'}
+                          </h4>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate block">
+                            Cap: {awayTeam?.representative || 'Por definir'}
+                          </span>
+                        </div>
+
+                        <div
+                          className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-white font-black text-xs sm:text-sm tracking-wider shadow-sm shrink-0 order-1 md:order-2"
+                          style={{
+                            backgroundColor: awayColor,
+                            boxShadow: `0 4px 12px ${awayColor}30`,
+                          }}
+                        >
+                          {awayTeam?.shortName || 'VIS'}
+                        </div>
+
+                        {/* Delete Match Button */}
+                        <button
+                          onClick={() => {
+                            if (confirm(`¿Deseas eliminar el partido entre ${homeTeam?.name} y ${awayTeam?.name}?`)) {
+                              onDeleteMatch(match.id);
+                            }
+                          }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 opacity-70 group-hover:opacity-100 transition-all shrink-0 ml-2 order-3"
+                          title="Eliminar partido"
+                          aria-label="Eliminar partido"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -641,6 +891,20 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
         onSave={(data) => {
           onAddTeam(data);
           setIsNewTeamModalOpen(false);
+        }}
+      />
+
+      {/* New Match Modal */}
+      <NewMatchModal
+        isOpen={isNewMatchModalOpen}
+        onClose={() => setIsNewMatchModalOpen(false)}
+        tournamentId={tournament.id}
+        tournamentVenue={tournament.venue}
+        matchdayNumber={effectiveMatchdayNumber}
+        teams={tournamentTeams}
+        onSave={(matchData) => {
+          onAddMatch(matchData);
+          setIsNewMatchModalOpen(false);
         }}
       />
     </div>

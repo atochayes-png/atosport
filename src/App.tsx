@@ -9,12 +9,16 @@ import { LiveScoresView } from './components/LiveScoresView';
 import { NewTournamentModal } from './components/NewTournamentModal';
 import { Tournament } from './types/tournament';
 import { Team } from './types/team';
+import { Match, Matchday } from './types/match';
 import { INITIAL_TEAMS } from './data/initialTeams';
+import { INITIAL_MATCHDAYS, INITIAL_MATCHES } from './data/initialMatches';
 import { CheckCircle2, Shield } from 'lucide-react';
 import { ThemeProvider } from './context/ThemeContext';
 
 const STORAGE_KEY = 'atosport_tournaments';
 const TEAMS_STORAGE_KEY = 'atosport_teams';
+const MATCHDAYS_STORAGE_KEY = 'atosport_matchdays';
+const MATCHES_STORAGE_KEY = 'atosport_matches';
 
 const INITIAL_TOURNAMENTS: Tournament[] = [
   {
@@ -100,6 +104,38 @@ function AppContent() {
     return INITIAL_TEAMS;
   });
 
+  // Load matchdays with localStorage synchronization
+  const [matchdays, setMatchdays] = useState<Matchday[]>(() => {
+    try {
+      const saved = localStorage.getItem(MATCHDAYS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Error loading matchdays from localStorage, using defaults:', e);
+    }
+    return INITIAL_MATCHDAYS;
+  });
+
+  // Load matches with localStorage synchronization
+  const [matches, setMatches] = useState<Match[]>(() => {
+    try {
+      const saved = localStorage.getItem(MATCHES_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Error loading matches from localStorage, using defaults:', e);
+    }
+    return INITIAL_MATCHES;
+  });
+
   const [notification, setNotification] = useState<string | null>(null);
 
   // Sync tournaments with localStorage on every change
@@ -119,6 +155,24 @@ function AppContent() {
       console.error('Error saving teams to localStorage:', e);
     }
   }, [teams]);
+
+  // Sync matchdays with localStorage on every change
+  useEffect(() => {
+    try {
+      localStorage.setItem(MATCHDAYS_STORAGE_KEY, JSON.stringify(matchdays));
+    } catch (e) {
+      console.error('Error saving matchdays to localStorage:', e);
+    }
+  }, [matchdays]);
+
+  // Sync matches with localStorage on every change
+  useEffect(() => {
+    try {
+      localStorage.setItem(MATCHES_STORAGE_KEY, JSON.stringify(matches));
+    } catch (e) {
+      console.error('Error saving matches to localStorage:', e);
+    }
+  }, [matches]);
 
   // Synchronize registered teams count with tournament stats
   useEffect(() => {
@@ -153,11 +207,21 @@ function AppContent() {
       return updated;
     });
 
+    // Create default Jornada 1 for the new tournament
+    const defaultMatchday: Matchday = {
+      id: `md-${newTournament.id}-1`,
+      tournamentId: newTournament.id,
+      number: 1,
+      name: 'Jornada 1',
+      createdAt: new Date().toISOString(),
+    };
+    setMatchdays((prev) => [...prev, defaultMatchday]);
+
     // Close modal, show toast, and select the newly created tournament directly
     setIsModalOpen(false);
     setSelectedTournamentId(newTournament.id);
     setCurrentTab('tournaments');
-    setNotification(`¡Torneo "${data.name}" creado con éxito! Puedes inscribir equipos ahora.`);
+    setNotification(`¡Torneo "${data.name}" creado con éxito! Puedes inscribir equipos y programar jornadas.`);
     setTimeout(() => setNotification(null), 4500);
   };
 
@@ -182,6 +246,10 @@ function AppContent() {
       }
       return updated;
     });
+
+    // Also remove matchdays and matches
+    setMatchdays((prev) => prev.filter((md) => md.tournamentId !== id));
+    setMatches((prev) => prev.filter((m) => m.tournamentId !== id));
 
     if (selectedTournamentId === id) {
       setSelectedTournamentId(null);
@@ -210,8 +278,54 @@ function AppContent() {
 
     setTeams((prev) => prev.filter((t) => t.id !== teamId));
 
+    // Also remove matches where this team played
+    setMatches((prev) => prev.filter((m) => m.homeTeamId !== teamId && m.awayTeamId !== teamId));
+
     setNotification(`Equipo "${teamToRemove.name}" eliminado del torneo.`);
     setTimeout(() => setNotification(null), 3500);
+  };
+
+  // Add a new matchday
+  const handleAddMatchday = (tournamentId: string) => {
+    const existingForTournament = matchdays.filter((md) => md.tournamentId === tournamentId);
+    const nextNumber = existingForTournament.length > 0 
+      ? Math.max(...existingForTournament.map((md) => md.number)) + 1 
+      : 1;
+
+    const newMatchday: Matchday = {
+      id: `md-${tournamentId}-${nextNumber}`,
+      tournamentId,
+      number: nextNumber,
+      name: `Jornada ${nextNumber}`,
+      createdAt: new Date().toISOString(),
+    };
+
+    setMatchdays((prev) => [...prev, newMatchday]);
+    setNotification(`¡Jornada ${nextNumber} agregada al rol de juegos!`);
+    setTimeout(() => setNotification(null), 3500);
+  };
+
+  // Add a new scheduled match
+  const handleAddMatch = (matchData: Omit<Match, 'id' | 'createdAt'>) => {
+    const newMatch: Match = {
+      ...matchData,
+      id: `m-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+
+    setMatches((prev) => [newMatch, ...prev]);
+
+    const home = teams.find((t) => t.id === matchData.homeTeamId)?.name || 'Local';
+    const away = teams.find((t) => t.id === matchData.awayTeamId)?.name || 'Visita';
+    setNotification(`¡Partido programado: ${home} vs ${away}!`);
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  // Delete a scheduled match
+  const handleDeleteMatch = (matchId: string) => {
+    setMatches((prev) => prev.filter((m) => m.id !== matchId));
+    setNotification('Partido eliminado de la jornada.');
+    setTimeout(() => setNotification(null), 3000);
   };
 
   const handleNavigate = (tab: 'dashboard' | 'tournaments' | 'scores') => {
@@ -246,12 +360,17 @@ function AppContent() {
           <TournamentDetailView
             tournament={selectedTournament}
             teams={teams}
+            matchdays={matchdays}
+            matches={matches}
             onBack={() => {
               setSelectedTournamentId(null);
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             onAddTeam={handleAddTeam}
             onDeleteTeam={handleDeleteTeam}
+            onAddMatchday={handleAddMatchday}
+            onAddMatch={handleAddMatch}
+            onDeleteMatch={handleDeleteMatch}
           />
         ) : (
           <>
