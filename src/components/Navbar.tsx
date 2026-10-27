@@ -37,11 +37,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => onNavigate('dashboard')}
               className="flex items-center gap-2.5 sm:gap-3 text-left group transition-all"
             >
-              <div className="relative flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 p-0.5 shadow-sm group-hover:scale-105 transition-transform duration-300">
-                <div className="w-full h-full bg-white dark:bg-[#070A0F] rounded-[10px] flex items-center justify-center transition-colors">
-                  <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 dark:text-emerald-400 group-hover:rotate-6 transition-transform" />
-                </div>
-              </div>
+              <img
+                src="/logo-atosport.png"
+                alt="Logo ATOSPORT"
+                className="w-9 h-9 sm:w-10 sm:h-10 object-contain rounded-xl drop-shadow-sm group-hover:scale-105 transition-transform duration-300"
+              />
               <div className="flex flex-col">
                 <span className="font-extrabold text-base sm:text-xl tracking-tight text-slate-900 dark:text-[#E2E8F0] flex items-center gap-1.5 sm:gap-2">
                   ATOSPORT

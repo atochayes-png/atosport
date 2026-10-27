@@ -1,8 +1,9 @@
-const CACHE_NAME = 'atosport-pwa-v1';
+const CACHE_NAME = 'atosport-pwa-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/logo-atosport.png',
   '/icon.svg',
   '/icon-maskable.svg',
   '/icon-192.png',

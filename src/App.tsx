@@ -12,7 +12,7 @@ import { Team } from './types/team';
 import { Match, Matchday, MatchStatus } from './types/match';
 import { INITIAL_TEAMS } from './data/initialTeams';
 import { INITIAL_MATCHDAYS, INITIAL_MATCHES } from './data/initialMatches';
-import { CheckCircle2, Shield } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { ThemeProvider } from './context/ThemeContext';
 
 const STORAGE_KEY = 'atosport_tournaments';
@@ -441,7 +441,7 @@ function AppContent() {
       <footer className="border-t border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#070A0F] py-6 sm:py-8 mt-12 sm:mt-16 transition-colors duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400 text-center sm:text-left">
           <div className="flex items-center gap-2">
-            <Shield className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <img src="/logo-atosport.png" alt="ATOSPORT" className="w-5 h-5 object-contain rounded drop-shadow-sm shrink-0" />
             <span className="font-semibold text-slate-700 dark:text-slate-300">ATOSPORT SaaS</span>
             <span className="hidden sm:inline">— Plataforma Deportiva Profesional</span>
           </div>
