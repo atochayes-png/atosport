@@ -1077,6 +1077,7 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
         tournamentVenue={tournament.venue}
         matchdayNumber={effectiveMatchdayNumber}
         teams={tournamentTeams}
+        existingMatches={tournamentMatches}
         onSave={(matchData) => {
           onAddMatch(matchData);
           setIsNewMatchModalOpen(false);
