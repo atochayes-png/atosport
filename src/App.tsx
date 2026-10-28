@@ -7,7 +7,7 @@ import { TournamentsView } from './components/TournamentsView';
 import { TournamentDetailView } from './components/TournamentDetailView';
 import { LiveScoresView } from './components/LiveScoresView';
 import { NewTournamentModal } from './components/NewTournamentModal';
-import { Tournament } from './types/tournament';
+import { Tournament, TournamentStatus } from './types/tournament';
 import { Team } from './types/team';
 import { Match, Matchday, MatchStatus } from './types/match';
 import { INITIAL_TEAMS } from './data/initialTeams';
@@ -259,6 +259,22 @@ function AppContent() {
     setTimeout(() => setNotification(null), 3000);
   };
 
+  const handleUpdateTournamentStatus = (tournamentId: string, newStatus: TournamentStatus) => {
+    setTournaments((prev) => {
+      const updated = prev.map((t) => (t.id === tournamentId ? { ...t, status: newStatus } : t));
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.error('Error saving updated tournament status to localStorage:', e);
+      }
+      return updated;
+    });
+
+    const displayLabel = newStatus === 'Activo' ? 'Activo / En Curso' : newStatus;
+    setNotification(`Estado del torneo actualizado a "${displayLabel}"`);
+    setTimeout(() => setNotification(null), 3500);
+  };
+
   const handleAddTeam = (teamData: Omit<Team, 'id' | 'createdAt'>) => {
     const newTeam: Team = {
       ...teamData,
@@ -395,6 +411,7 @@ function AppContent() {
             onAddMatch={handleAddMatch}
             onDeleteMatch={handleDeleteMatch}
             onUpdateScore={handleUpdateScore}
+            onUpdateStatus={handleUpdateTournamentStatus}
           />
         ) : (
           <>

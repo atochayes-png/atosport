@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   ArrowLeft, 
   Trophy, 
@@ -20,7 +20,9 @@ import {
   Clock,
   Swords,
   AlertCircle,
-  Edit3
+  Edit3,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import { Tournament, TournamentStatus } from '../types/tournament';
 import { Team, TournamentDetailTab } from '../types/team';
@@ -29,6 +31,46 @@ import { NewTeamModal } from './NewTeamModal';
 import { NewMatchModal } from './NewMatchModal';
 import { ScoreModal } from './ScoreModal';
 import { StandingsTable } from './StandingsTable';
+
+const STATUS_CONFIG: Record<
+  TournamentStatus,
+  {
+    label: string;
+    badgeLabel: string;
+    badgeClass: string;
+    dotClass: string;
+    description: string;
+  }
+> = {
+  'En Inscripciones': {
+    label: 'En Inscripciones',
+    badgeLabel: 'En Inscripciones',
+    badgeClass: 'bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/30 dark:border-blue-500/30',
+    dotClass: 'bg-blue-500 dark:bg-blue-400',
+    description: 'Convocatoria abierta para registrar clubes',
+  },
+  'Activo': {
+    label: 'Activo / En Curso',
+    badgeLabel: 'Activo / En Curso',
+    badgeClass: 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 dark:border-emerald-500/30',
+    dotClass: 'bg-emerald-500 dark:bg-emerald-400 animate-pulse',
+    description: 'Partidos en desarrollo y rol activo',
+  },
+  'Finalizado': {
+    label: 'Finalizado',
+    badgeLabel: 'Finalizado',
+    badgeClass: 'bg-slate-500/10 hover:bg-slate-500/20 text-slate-600 dark:text-slate-400 border-slate-500/30 dark:border-slate-600/30',
+    dotClass: 'bg-slate-400 dark:bg-slate-500',
+    description: 'Torneo concluido y tabla oficial definitiva',
+  },
+  'Próximo': {
+    label: 'Próximo Torneo',
+    badgeLabel: 'Próximo',
+    badgeClass: 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30 dark:border-amber-500/30',
+    dotClass: 'bg-amber-500 dark:bg-amber-400',
+    description: 'En fase de preparación y calendario previo',
+  },
+};
 
 interface TournamentDetailViewProps {
   tournament: Tournament;
@@ -42,6 +84,7 @@ interface TournamentDetailViewProps {
   onAddMatch: (match: Omit<Match, 'id' | 'createdAt'>) => void;
   onDeleteMatch: (matchId: string) => void;
   onUpdateScore: (matchId: string, homeScore: number, awayScore: number, status: MatchStatus) => void;
+  onUpdateStatus?: (tournamentId: string, newStatus: TournamentStatus) => void;
 }
 
 export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
@@ -56,6 +99,7 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
   onAddMatch,
   onDeleteMatch,
   onUpdateScore,
+  onUpdateStatus,
 }) => {
   const [activeTab, setActiveTab] = useState<TournamentDetailTab>('equipos');
   const [searchTerm, setSearchTerm] = useState('');
@@ -64,6 +108,65 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
   const [isScoreModalOpen, setIsScoreModalOpen] = useState(false);
   const [selectedMatchForScore, setSelectedMatchForScore] = useState<Match | null>(null);
   const [copyToast, setCopyToast] = useState(false);
+
+  // Interactive Tournament Status Selector state
+  const [currentStatus, setCurrentStatus] = useState<TournamentStatus>(tournament.status);
+  const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
+  const statusMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setCurrentStatus(tournament.status);
+  }, [tournament.status]);
+
+  // Handle outside click and Escape key for status dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (statusMenuRef.current && !statusMenuRef.current.contains(event.target as Node)) {
+        setIsStatusMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsStatusMenuOpen(false);
+      }
+    };
+    if (isStatusMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isStatusMenuOpen]);
+
+  const handleStatusSelect = (newStatus: TournamentStatus) => {
+    setCurrentStatus(newStatus);
+    setIsStatusMenuOpen(false);
+
+    // 1. Direct persistence in localStorage
+    try {
+      const saved = localStorage.getItem('atosport_tournaments');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const updated = parsed.map((t: Tournament) =>
+            t.id === tournament.id ? { ...t, status: newStatus } : t
+          );
+          localStorage.setItem('atosport_tournaments', JSON.stringify(updated));
+        }
+      }
+    } catch (err) {
+      console.error('Error persisting tournament status change:', err);
+    }
+
+    // 2. Notify parent state
+    if (onUpdateStatus) {
+      onUpdateStatus(tournament.id, newStatus);
+    }
+  };
+
+  const currentStatusConfig = STATUS_CONFIG[currentStatus] || STATUS_CONFIG['En Inscripciones'];
 
   // Filter teams registered for this specific tournament
   const tournamentTeams = teams.filter((t) => t.tournamentId === tournament.id);
@@ -143,38 +246,6 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
     }
   };
 
-  const getStatusBadge = (status: TournamentStatus) => {
-    switch (status) {
-      case 'Activo':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Torneo Activo
-          </span>
-        );
-      case 'En Inscripciones':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-            <span className="w-2 h-2 rounded-full bg-blue-500" />
-            En Inscripciones
-          </span>
-        );
-      case 'Próximo':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-            <span className="w-2 h-2 rounded-full bg-amber-500" />
-            Próximo Torneo
-          </span>
-        );
-      case 'Finalizado':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20">
-            Finalizado
-          </span>
-        );
-    }
-  };
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8 animate-in fade-in duration-300">
       {/* Top Back Action Bar */}
@@ -214,14 +285,76 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 sm:gap-8">
           {/* Tournament Main Details */}
           <div className="space-y-4 max-w-3xl">
-            {/* Badges row */}
+            {/* Badges row with Interactive Status Dropdown */}
             <div className="flex flex-wrap items-center gap-2.5">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800/80 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60">
                 <Activity className="w-3.5 h-3.5 text-emerald-500" />
                 {tournament.sport}
               </span>
 
-              {getStatusBadge(tournament.status)}
+              {/* Interactive Tournament Status Selector */}
+              <div className="relative inline-block" ref={statusMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsStatusMenuOpen((prev) => !prev)}
+                  aria-haspopup="listbox"
+                  aria-expanded={isStatusMenuOpen}
+                  title="Haz clic para cambiar el estado del torneo"
+                  className={`group inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border shadow-sm transition-all duration-200 cursor-pointer select-none active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 ${currentStatusConfig.badgeClass}`}
+                >
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${currentStatusConfig.dotClass}`} />
+                  <span>{currentStatusConfig.badgeLabel}</span>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 opacity-60 group-hover:opacity-100 transition-transform duration-200 ${
+                      isStatusMenuOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+
+                {isStatusMenuOpen && (
+                  <div
+                    role="listbox"
+                    className="absolute left-0 mt-2 w-64 p-1.5 rounded-2xl bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md"
+                  >
+                    <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800/80 mb-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                        Cambiar Estado del Torneo
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      {(Object.keys(STATUS_CONFIG) as TournamentStatus[]).map((statusKey) => {
+                        const cfg = STATUS_CONFIG[statusKey];
+                        const isSelected = currentStatus === statusKey;
+                        return (
+                          <button
+                            key={statusKey}
+                            type="button"
+                            role="option"
+                            aria-selected={isSelected}
+                            onClick={() => handleStatusSelect(statusKey)}
+                            className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold transition-all ${
+                              isSelected
+                                ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-bold'
+                                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dotClass}`} />
+                              <div className="truncate">
+                                <div className="leading-snug">{cfg.label}</div>
+                                <div className="text-[10px] font-normal text-slate-400 dark:text-slate-500 truncate">
+                                  {cfg.description}
+                                </div>
+                              </div>
+                            </div>
+                            {isSelected && <Check className="w-4 h-4 text-emerald-500 shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800">
                 <Calendar className="w-3.5 h-3.5 text-slate-400" />
@@ -293,8 +426,14 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
                   : 'text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 dark:shadow-emerald-glow'
               }`}
             >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>+ Inscribir Equipo</span>
+              {isFull ? (
+                <span>Cupo Completo</span>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
+                  <span>Inscribir Equipo</span>
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -398,8 +537,14 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
                     : 'text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 shadow-md dark:shadow-emerald-glow'
                 }`}
               >
-                <Plus className="w-4 h-4 stroke-[2.5]" />
-                <span>+ Inscribir Equipo</span>
+                {isFull ? (
+                  <span>Cupo Completo</span>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 stroke-[2.5]" />
+                    <span>Inscribir Equipo</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
