@@ -10,8 +10,10 @@ import { NewTournamentModal } from './components/NewTournamentModal';
 import { Tournament, TournamentStatus } from './types/tournament';
 import { Team } from './types/team';
 import { Match, Matchday, MatchStatus } from './types/match';
+import { Player, TeamFinance } from './types/player';
 import { INITIAL_TEAMS } from './data/initialTeams';
 import { INITIAL_MATCHDAYS, INITIAL_MATCHES } from './data/initialMatches';
+import { INITIAL_PLAYERS, INITIAL_TEAM_FINANCES } from './data/initialPlayers';
 import { CheckCircle2 } from 'lucide-react';
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -19,6 +21,8 @@ const STORAGE_KEY = 'atosport_tournaments';
 const TEAMS_STORAGE_KEY = 'atosport_teams';
 const MATCHDAYS_STORAGE_KEY = 'atosport_matchdays';
 const MATCHES_STORAGE_KEY = 'atosport_matches';
+const PLAYERS_STORAGE_KEY = 'atosport_players';
+const FINANCES_STORAGE_KEY = 'atosport_team_finances';
 
 const INITIAL_TOURNAMENTS: Tournament[] = [
   {
@@ -135,6 +139,56 @@ function AppContent() {
     }
     return INITIAL_MATCHES;
   });
+
+  // Load players with localStorage synchronization
+  const [players, setPlayers] = useState<Player[]>(() => {
+    try {
+      const saved = localStorage.getItem(PLAYERS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Error loading players from localStorage, using defaults:', e);
+    }
+    return INITIAL_PLAYERS;
+  });
+
+  // Load team finances with localStorage synchronization
+  const [teamFinances, setTeamFinances] = useState<TeamFinance[]>(() => {
+    try {
+      const saved = localStorage.getItem(FINANCES_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Error loading team finances from localStorage, using defaults:', e);
+    }
+    return INITIAL_TEAM_FINANCES;
+  });
+
+  // Sync players with localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(PLAYERS_STORAGE_KEY, JSON.stringify(players));
+    } catch (e) {
+      console.error('Error saving players to localStorage:', e);
+    }
+  }, [players]);
+
+  // Sync team finances with localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(FINANCES_STORAGE_KEY, JSON.stringify(teamFinances));
+    } catch (e) {
+      console.error('Error saving team finances to localStorage:', e);
+    }
+  }, [teamFinances]);
 
   const [notification, setNotification] = useState<string | null>(null);
 
@@ -367,6 +421,55 @@ function AppContent() {
     setTimeout(() => setNotification(null), 4000);
   };
 
+  // Player roster and finance management handlers
+  const handleAddPlayer = (playerData: Omit<Player, 'id' | 'createdAt'>) => {
+    const newPlayer: Player = {
+      ...playerData,
+      id: `p-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    setPlayers((prev) => [newPlayer, ...prev]);
+    setNotification(`¡Jugador #${newPlayer.number} "${newPlayer.name}" registrado en la plantilla!`);
+    setTimeout(() => setNotification(null), 3500);
+  };
+
+  const handleUpdatePlayer = (playerId: string, updatedFields: Partial<Player>) => {
+    setPlayers((prev) =>
+      prev.map((p) => (p.id === playerId ? { ...p, ...updatedFields } : p))
+    );
+    const target = players.find((p) => p.id === playerId);
+    setNotification(`Ficha del jugador "${target?.name || ''}" actualizada.`);
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  const handleDeletePlayer = (playerId: string) => {
+    const target = players.find((p) => p.id === playerId);
+    setPlayers((prev) => prev.filter((p) => p.id !== playerId));
+    setNotification(`Jugador "${target?.name || ''}" dado de baja de la plantilla.`);
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  const handleUpdateFinance = (teamId: string, financeData: Partial<TeamFinance>) => {
+    setTeamFinances((prev) => {
+      const exists = prev.some((f) => f.teamId === teamId);
+      if (exists) {
+        return prev.map((f) => (f.teamId === teamId ? { ...f, ...financeData } : f));
+      } else {
+        return [
+          ...prev,
+          {
+            teamId,
+            tournamentId: financeData.tournamentId || '',
+            totalTeamFee: financeData.totalTeamFee ?? 4200,
+            suggestedPlayerFee: financeData.suggestedPlayerFee ?? 350,
+          },
+        ];
+      }
+    });
+    setNotification('Parámetros financieros del equipo actualizados.');
+    setTimeout(() => setNotification(null), 3000);
+  };
+
   const handleNavigate = (tab: 'dashboard' | 'tournaments' | 'scores') => {
     setSelectedTournamentId(null);
     setCurrentTab(tab);
@@ -401,6 +504,8 @@ function AppContent() {
             teams={teams}
             matchdays={matchdays}
             matches={matches}
+            players={players}
+            teamFinances={teamFinances}
             onBack={() => {
               setSelectedTournamentId(null);
               window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -412,6 +517,10 @@ function AppContent() {
             onDeleteMatch={handleDeleteMatch}
             onUpdateScore={handleUpdateScore}
             onUpdateStatus={handleUpdateTournamentStatus}
+            onAddPlayer={handleAddPlayer}
+            onUpdatePlayer={handleUpdatePlayer}
+            onDeletePlayer={handleDeletePlayer}
+            onUpdateFinance={handleUpdateFinance}
           />
         ) : (
           <>
