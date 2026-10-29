@@ -4,6 +4,7 @@ import { Match } from '../types/match';
 import { Team } from '../types/team';
 import { Tournament } from '../types/tournament';
 import { useAuth } from '../context/AuthContext';
+import { LiveTimerBadge } from '../utils/matchTimer';
 
 interface LiveMatchesBannerProps {
   matches: Match[];
@@ -67,10 +68,6 @@ export const LiveMatchesBanner: React.FC<LiveMatchesBannerProps> = ({
           const homeColor = homeTeam?.color || '#10B981';
           const awayColor = awayTeam?.color || '#3B82F6';
 
-          const timeDisplay = match.liveMinute 
-            ? `${match.liveStage ? `${match.liveStage} • ` : ''}${match.liveMinute}`
-            : (match.liveStage || 'En Juego');
-
           return (
             <div
               key={match.id}
@@ -82,10 +79,10 @@ export const LiveMatchesBanner: React.FC<LiveMatchesBannerProps> = ({
                   {tournament ? tournament.name : `Jornada ${match.matchdayNumber}`}
                 </span>
 
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide uppercase bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
-                  <span>{timeDisplay}</span>
-                </span>
+                <LiveTimerBadge 
+                  match={match} 
+                  halfDurationMinutes={tournament?.rules?.halfDurationMinutes ?? 35} 
+                />
               </div>
 
               {/* Scoreboard display */}

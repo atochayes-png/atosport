@@ -9,15 +9,17 @@ import {
   Flame,
   AlertTriangle,
   Radio,
-  Clock,
   Flag,
-  Users
+  Users,
+  Play,
+  Pause
 } from 'lucide-react';
 import { Team } from '../types/team';
 import { Match, MatchStatus, MatchAttendance } from '../types/match';
 import { TournamentRules, Tournament } from '../types/tournament';
 import { Player } from '../types/player';
 import { checkPlayerEligibility } from '../utils/attendanceUtils';
+import { useMatchTimer, formatMMSS } from '../utils/matchTimer';
 
 interface ScoreModalProps {
   isOpen: boolean;
@@ -39,7 +41,14 @@ interface ScoreModalProps {
     awayPenalties?: number,
     penaltyWinnerId?: string,
     liveMinute?: string,
-    liveStage?: '1T' | 'Medio Tiempo' | '2T' | 'Tiempo Extra'
+    liveStage?: '1T' | 'Medio Tiempo' | '2T' | 'Tiempo Extra',
+    timerData?: {
+      period?: number;
+      startedAt?: number;
+      firstHalfDurationSeconds?: number;
+      secondHalfStartedAt?: number;
+      isTimerRunning?: boolean;
+    }
   ) => void;
 }
 
@@ -61,9 +70,15 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
   const [homePenalties, setHomePenalties] = useState<number>(0);
   const [awayPenalties, setAwayPenalties] = useState<number>(0);
   const [status, setStatus] = useState<MatchStatus>('Finalizado');
-  const [liveStage, setLiveStage] = useState<'1T' | 'Medio Tiempo' | '2T' | 'Tiempo Extra'>('1T');
-  const [liveMinute, setLiveMinute] = useState<string>("10'");
+  const [liveStage, setLiveStage] = useState<'1T' | 'Medio Tiempo' | '2T' | 'Tiempo Extra' | undefined>('1T');
   const [penaltyError, setPenaltyError] = useState<string | null>(null);
+
+  // Motor de Cronómetro Deportivo Continuo
+  const [period, setPeriod] = useState<number>(0);
+  const [startedAt, setStartedAt] = useState<number | undefined>(undefined);
+  const [firstHalfDurationSeconds, setFirstHalfDurationSeconds] = useState<number | undefined>(undefined);
+  const [secondHalfStartedAt, setSecondHalfStartedAt] = useState<number | undefined>(undefined);
+  const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
 
   // Ineligibility alert state for event registration
   const [ineligibilityAlert, setIneligibilityAlert] = useState<{
@@ -81,12 +96,48 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
       setAwayScore(match.awayScore ?? 0);
       setHomePenalties(match.homePenalties ?? (match.penaltyWinnerId === match.homeTeamId ? 5 : 4));
       setAwayPenalties(match.awayPenalties ?? (match.penaltyWinnerId === match.awayTeamId ? 5 : 4));
-      setStatus(match.status === 'Programado' ? 'Finalizado' : match.status);
+      setStatus(match.status);
       setLiveStage(match.liveStage || '1T');
-      setLiveMinute(match.liveMinute || (match.status === 'En Vivo' ? "45'" : "10'"));
       setPenaltyError(null);
+
+      // Cargar cronómetro persistente desde marcas de tiempo existentes
+      const initPeriod = match.period ?? (match.liveStage === '2T' ? 2 : match.status === 'En Vivo' ? 1 : 0);
+      setPeriod(initPeriod);
+      setStartedAt(match.startedAt);
+      setFirstHalfDurationSeconds(match.firstHalfDurationSeconds);
+      setSecondHalfStartedAt(match.secondHalfStartedAt);
+      setIsTimerRunning(match.isTimerRunning ?? (match.status === 'En Vivo' && match.liveStage !== 'Medio Tiempo'));
     }
   }, [isOpen, match]);
+
+  // Duración reglamentaria de cada tiempo (por defecto 35 para Veteranos Modelo, o según torneo)
+  const halfDurationMin = tournament?.rules?.halfDurationMinutes ?? rules?.halfDurationMinutes ?? 35;
+
+  // Objeto de match sincronizado para el cálculo en tiempo real del cronómetro
+  const currentMatchState: Match = {
+    ...(match || {
+      id: '',
+      tournamentId: '',
+      matchdayNumber: 1,
+      homeTeamId: '',
+      awayTeamId: '',
+      date: '',
+      time: '',
+      field: '',
+      status: 'Programado',
+      createdAt: '',
+    }),
+    status,
+    period,
+    startedAt,
+    firstHalfDurationSeconds,
+    secondHalfStartedAt,
+    isTimerRunning,
+    liveStage,
+    halfDurationMinutes: halfDurationMin,
+  };
+
+  const timer = useMatchTimer(currentMatchState, halfDurationMin);
 
   // Handle ESC
   useEffect(() => {
@@ -109,7 +160,194 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
   const isPenaltiesActive = Boolean(rules?.penaltiesEnabled);
   const showPenaltiesBlock = status === 'Finalizado' && isDraw && isPenaltiesActive;
 
-  const handleSubmit = (e?: React.FormEvent, forcedStatus?: MatchStatus) => {
+  // Handler: ▶ Iniciar 1er Tiempo
+  const handleStartFirstHalf = () => {
+    const now = Date.now();
+    setPeriod(1);
+    setStartedAt(now);
+    setIsTimerRunning(true);
+    setStatus('En Vivo');
+    setLiveStage('1T');
+
+    onSave(
+      match.id,
+      homeScore,
+      awayScore,
+      'En Vivo',
+      undefined,
+      undefined,
+      undefined,
+      '00:00',
+      '1T',
+      {
+        period: 1,
+        startedAt: now,
+        firstHalfDurationSeconds: undefined,
+        secondHalfStartedAt: undefined,
+        isTimerRunning: true,
+      }
+    );
+  };
+
+  // Handler: ⏸ Silbatazo Medio Tiempo
+  const handleHalfTimeWhistle = () => {
+    const firstHalfNominal = halfDurationMin * 60;
+    const elapsed = startedAt 
+      ? Math.max(firstHalfNominal, Math.floor((Date.now() - startedAt) / 1000)) 
+      : firstHalfNominal;
+
+    setIsTimerRunning(false);
+    setLiveStage('Medio Tiempo');
+    setPeriod(1);
+    setFirstHalfDurationSeconds(elapsed);
+
+    onSave(
+      match.id,
+      homeScore,
+      awayScore,
+      'En Vivo',
+      undefined,
+      undefined,
+      undefined,
+      formatMMSS(firstHalfNominal),
+      'Medio Tiempo',
+      {
+        period: 1,
+        startedAt,
+        firstHalfDurationSeconds: elapsed,
+        secondHalfStartedAt: undefined,
+        isTimerRunning: false,
+      }
+    );
+  };
+
+  // Handler: ▶ Iniciar 2do Tiempo
+  const handleStartSecondHalf = () => {
+    const now = Date.now();
+    const firstHalfNominal = halfDurationMin * 60;
+    setPeriod(2);
+    setSecondHalfStartedAt(now);
+    setIsTimerRunning(true);
+    setStatus('En Vivo');
+    setLiveStage('2T');
+
+    onSave(
+      match.id,
+      homeScore,
+      awayScore,
+      'En Vivo',
+      undefined,
+      undefined,
+      undefined,
+      formatMMSS(firstHalfNominal),
+      '2T',
+      {
+        period: 2,
+        startedAt,
+        firstHalfDurationSeconds: firstHalfDurationSeconds || firstHalfNominal,
+        secondHalfStartedAt: now,
+        isTimerRunning: true,
+      }
+    );
+  };
+
+  // Handler: ⏱ Silbatazo Final
+  const handleFinalWhistle = () => {
+    setIsTimerRunning(false);
+    setStatus('Finalizado');
+    setLiveStage(undefined);
+    handleSubmit(undefined, 'Finalizado', {
+      period: 2,
+      startedAt,
+      firstHalfDurationSeconds,
+      secondHalfStartedAt,
+      isTimerRunning: false,
+    });
+  };
+
+  // Handler: Pausa / Reanudación
+  const handleTogglePause = () => {
+    const newRunning = !isTimerRunning;
+    setIsTimerRunning(newRunning);
+    onSave(
+      match.id,
+      homeScore,
+      awayScore,
+      status,
+      homePenalties,
+      awayPenalties,
+      undefined,
+      timer.clockDisplay,
+      liveStage,
+      {
+        period,
+        startedAt,
+        firstHalfDurationSeconds,
+        secondHalfStartedAt,
+        isTimerRunning: newRunning,
+      }
+    );
+  };
+
+  // Handler: Ajuste fino de tiempo (+/- 1 min)
+  const handleAdjustTime = (secondsDelta: number) => {
+    const msDelta = secondsDelta * 1000;
+    if (period === 2 && secondHalfStartedAt) {
+      const newTime = secondHalfStartedAt - msDelta;
+      setSecondHalfStartedAt(newTime);
+      onSave(
+        match.id,
+        homeScore,
+        awayScore,
+        status,
+        undefined,
+        undefined,
+        undefined,
+        timer.clockDisplay,
+        liveStage,
+        {
+          period: 2,
+          startedAt,
+          firstHalfDurationSeconds,
+          secondHalfStartedAt: newTime,
+          isTimerRunning,
+        }
+      );
+    } else if (startedAt) {
+      const newTime = startedAt - msDelta;
+      setStartedAt(newTime);
+      onSave(
+        match.id,
+        homeScore,
+        awayScore,
+        status,
+        undefined,
+        undefined,
+        undefined,
+        timer.clockDisplay,
+        liveStage,
+        {
+          period: 1,
+          startedAt: newTime,
+          firstHalfDurationSeconds,
+          secondHalfStartedAt,
+          isTimerRunning,
+        }
+      );
+    }
+  };
+
+  const handleSubmit = (
+    e?: React.FormEvent, 
+    forcedStatus?: MatchStatus,
+    forcedTimerData?: {
+      period?: number;
+      startedAt?: number;
+      firstHalfDurationSeconds?: number;
+      secondHalfStartedAt?: number;
+      isTimerRunning?: boolean;
+    }
+  ) => {
     if (e) e.preventDefault();
     const effectiveStatus = forcedStatus || status;
     const safeHomeScore = Math.max(0, homeScore);
@@ -117,6 +355,14 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
 
     const isFinished = effectiveStatus === 'Finalizado';
     const checkPenalties = isFinished && isDraw && isPenaltiesActive;
+
+    const currentTimerData = forcedTimerData || {
+      period,
+      startedAt,
+      firstHalfDurationSeconds,
+      secondHalfStartedAt,
+      isTimerRunning: effectiveStatus === 'En Vivo' ? isTimerRunning : false,
+    };
 
     if (checkPenalties) {
       if (homePenalties === awayPenalties) {
@@ -134,7 +380,8 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
         awayPenalties,
         penaltyWinnerId,
         undefined,
-        undefined
+        undefined,
+        currentTimerData
       );
     } else {
       onSave(
@@ -145,8 +392,9 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
         undefined, 
         undefined, 
         undefined,
-        effectiveStatus === 'En Vivo' ? liveMinute : undefined,
-        effectiveStatus === 'En Vivo' ? liveStage : undefined
+        effectiveStatus === 'En Vivo' ? timer.clockDisplay : undefined,
+        effectiveStatus === 'En Vivo' ? liveStage : undefined,
+        currentTimerData
       );
     }
   };
@@ -540,78 +788,193 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
             </div>
           </div>
 
-          {/* Dedicated Live Controls (Visible when match is 'En Vivo') */}
-          {status === 'En Vivo' && (
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-red-500/10 via-amber-500/5 to-transparent border border-red-500/30 space-y-3.5 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold text-red-600 dark:text-red-400 flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 animate-spin-slow" />
-                  <span>Control de Tiempo de Juego</span>
-                </span>
-                <span className="text-[11px] font-mono font-bold text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded bg-white dark:bg-[#0B0F17] border border-red-500/20">
-                  {liveStage} • {liveMinute}
+          {/* Digital Sports Stopwatch Cockpit (Visible in 'En Vivo' or when preparing/managing match) */}
+          <div className="rounded-3xl bg-[#05070B] border-2 border-slate-800 shadow-2xl p-4 sm:p-5 space-y-4 overflow-hidden relative">
+            {/* Ambient light glow */}
+            <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl pointer-events-none transition-opacity ${
+              status === 'En Vivo' ? 'bg-red-500/10' : 'bg-emerald-500/5'
+            }`} />
+
+            {/* Cockpit Top Bar */}
+            <div className="flex items-center justify-between relative z-10 border-b border-slate-800/80 pb-3 text-xs">
+              <div className="flex items-center gap-2">
+                {status === 'En Vivo' ? (
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+                  </span>
+                ) : (
+                  <span className="w-2.5 h-2.5 rounded-full bg-slate-600" />
+                )}
+                <span className="font-mono text-[11px] font-black tracking-wider text-slate-300 uppercase">
+                  {status === 'En Vivo' ? (
+                    liveStage === 'Medio Tiempo' ? '⏸ MEDIO TIEMPO' : `🔴 EN JUEGO (${liveStage || '1T'})`
+                  ) : status === 'Finalizado' ? (
+                    '🏁 FINALIZADO'
+                  ) : (
+                    '⏱ SIN INICIAR'
+                  )}
                 </span>
               </div>
 
-              {/* Match Stage Selector */}
-              <div>
-                <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 block mb-1.5 tracking-wider">
-                  Etapa del Partido
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-full">
+                  Reglamento: {halfDurationMin} min / tiempo
                 </span>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {(['1T', 'Medio Tiempo', '2T', 'Tiempo Extra'] as const).map((stage) => (
-                    <button
-                      key={stage}
-                      type="button"
-                      onClick={() => setLiveStage(stage)}
-                      className={`px-2 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
-                        liveStage === stage
-                          ? 'bg-red-500 text-white border-red-500 shadow-xs'
-                          : 'bg-white dark:bg-[#0B0F17] border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                      }`}
-                    >
-                      {stage}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Minute Input & Quick Chips */}
-              <div>
-                <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 block mb-1.5 tracking-wider">
-                  Minuto Transcurrido
-                </span>
-                <div className="flex items-center gap-2">
-                  <div className="relative w-28">
-                    <input
-                      type="text"
-                      value={liveMinute}
-                      onChange={(e) => setLiveMinute(e.target.value)}
-                      placeholder="ej. 65'"
-                      className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-[#0B0F17] border border-red-400/50 text-center font-bold text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-red-500"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-1 overflow-x-auto py-0.5">
-                    {["15'", "30'", "45'", "60'", "75'", "90'"].map((preset) => (
-                      <button
-                        key={preset}
-                        type="button"
-                        onClick={() => setLiveMinute(preset)}
-                        className={`px-2 py-1 rounded-lg text-[10px] font-semibold transition-all border ${
-                          liveMinute === preset
-                            ? 'bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/40 font-bold'
-                            : 'bg-white dark:bg-[#0B0F17] border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                        }`}
-                      >
-                        {preset}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                {status === 'En Vivo' && (
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                    isTimerRunning ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                  }`}>
+                    {isTimerRunning ? 'Reloj Corriendo' : 'Pausado'}
+                  </span>
+                )}
               </div>
             </div>
-          )}
+
+            {/* Main Big Digital LED Digits Display */}
+            <div className="flex flex-col items-center justify-center py-2 sm:py-3 relative z-10">
+              <div className="flex items-baseline justify-center">
+                {/* Regular minutes:seconds */}
+                <span className="text-4xl sm:text-5xl font-mono font-black text-white tracking-widest drop-shadow-md">
+                  {status === 'Programado' && !startedAt ? '00:00' : timer.formattedTime}
+                </span>
+
+                {/* Added time highlighted in glowing amber (ej. 35:00 +2:15 en ámbar) */}
+                {timer.isAddedTime && timer.formattedAddedTime && (
+                  <span className="ml-2 sm:ml-3 text-2xl sm:text-3xl font-mono font-black text-amber-400 animate-pulse bg-amber-500/15 border border-amber-500/40 px-2.5 py-0.5 rounded-xl shadow-amber-500/20 shadow-md">
+                    {timer.formattedAddedTime}
+                  </span>
+                )}
+              </div>
+
+              <div className="text-[11px] text-slate-400 font-medium mt-1.5 flex items-center gap-1.5 text-center">
+                {status === 'Programado' && !startedAt ? (
+                  <span>Listo para dar el silbatazo inicial (Cálculo por timestamp Date.now())</span>
+                ) : liveStage === 'Medio Tiempo' ? (
+                  <span className="text-amber-400 font-bold">⏸ Entretiempo oficial fijado ({halfDurationMin}:00)</span>
+                ) : timer.isAddedTime ? (
+                  <span className="text-amber-400 font-bold">Tiempo agregado de compensación</span>
+                ) : (
+                  <span>Cronómetro deportivo continuo en tiempo real</span>
+                )}
+              </div>
+            </div>
+
+            {/* Main Referee Engine Action Buttons */}
+            <div className="space-y-2 pt-1 relative z-10">
+              {/* Estado: Sin Iniciar */}
+              {(status === 'Programado' || (!startedAt && status !== 'Finalizado')) && (
+                <button
+                  type="button"
+                  onClick={handleStartFirstHalf}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 active:scale-[0.99] transition-all"
+                >
+                  <Play className="w-5 h-5 fill-current" />
+                  <span>▶ Iniciar 1er Tiempo</span>
+                </button>
+              )}
+
+              {/* Estado: 1er Tiempo en Curso */}
+              {status === 'En Vivo' && (period === 1 || liveStage === '1T') && liveStage !== 'Medio Tiempo' && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={handleHalfTimeWhistle}
+                    className="sm:col-span-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-[0.99] transition-all"
+                  >
+                    <Pause className="w-4 h-4 fill-current" />
+                    <span>⏸ Silbatazo Medio Tiempo</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleTogglePause}
+                    className="py-3 px-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
+                  >
+                    {isTimerRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                    <span>{isTimerRunning ? 'Pausar' : 'Reanudar'}</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Estado: Medio Tiempo */}
+              {status === 'En Vivo' && liveStage === 'Medio Tiempo' && (
+                <button
+                  type="button"
+                  onClick={handleStartSecondHalf}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 active:scale-[0.99] transition-all"
+                >
+                  <Play className="w-5 h-5 fill-current" />
+                  <span>▶ Iniciar 2do Tiempo (desde {halfDurationMin}:00)</span>
+                </button>
+              )}
+
+              {/* Estado: 2do Tiempo en Curso */}
+              {status === 'En Vivo' && (period === 2 || liveStage === '2T') && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={handleFinalWhistle}
+                    className="sm:col-span-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-red-600/25 active:scale-[0.99] transition-all"
+                  >
+                    <Flag className="w-4 h-4" />
+                    <span>⏱ Silbatazo Final</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleTogglePause}
+                    className="py-3 px-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
+                  >
+                    {isTimerRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                    <span>{isTimerRunning ? 'Pausar' : 'Reanudar'}</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Estado Finalizado: Reanudar si se requiere prórroga o corrección */}
+              {status === 'Finalizado' && (
+                <div className="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between text-xs">
+                  <span className="text-slate-400">Resultado oficial congelado en el acta.</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStatus('En Vivo');
+                      setIsTimerRunning(true);
+                    }}
+                    className="px-3 py-1.5 rounded-xl text-[11px] font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-all"
+                  >
+                    Reanudar Cronómetro
+                  </button>
+                </div>
+              )}
+
+              {/* Micro-calibración arbitral (+/- 1 min) */}
+              {status === 'En Vivo' && (startedAt || secondHalfStartedAt) && (
+                <div className="pt-2 flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-900">
+                  <span className="text-[10px]">Ajuste fino de cronómetro:</span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleAdjustTime(-60)}
+                      className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 font-mono text-[10px] border border-slate-800 transition-colors"
+                      title="Restar 1 minuto"
+                    >
+                      -1 min
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAdjustTime(60)}
+                      className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 font-mono text-[10px] border border-slate-800 transition-colors"
+                      title="Sumar 1 minuto"
+                    >
+                      +1 min
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Registrar Incidencias / Eventos de Partido (Goles / Asistencias / Tarjetas) */}
           {players.length > 0 && (

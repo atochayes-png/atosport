@@ -42,5 +42,13 @@ export interface Match {
   liveMinute?: string;
   liveStage?: '1T' | 'Medio Tiempo' | '2T' | 'Tiempo Extra';
   createdAt: string;
+
+  // Motor de Cronómetro Deportivo Continuo por Timestamp
+  period?: number;                   // 0: sin iniciar, 1: 1T, 2: 2T
+  startedAt?: number;                // timestamp epoch ms de inicio 1T (Date.now())
+  firstHalfDurationSeconds?: number; // segundos acumulados al pitar el medio tiempo
+  secondHalfStartedAt?: number;      // timestamp epoch ms de inicio 2T (Date.now())
+  isTimerRunning?: boolean;          // indica si el cronómetro está corriendo
+  halfDurationMinutes?: number;      // duración reglamentaria del tiempo
 }
 

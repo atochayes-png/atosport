@@ -41,6 +41,7 @@ import { TeamRosterView } from './TeamRosterView';
 import { TournamentRulesConfig } from './TournamentRulesConfig';
 import { PlayerProfileView } from './PlayerProfileView';
 import { LiveMatchesBanner } from './LiveMatchesBanner';
+import { LiveTimerBadge } from '../utils/matchTimer';
 import { loadTournamentAttendances, saveTournamentAttendances } from '../utils/attendanceUtils';
 
 const STATUS_CONFIG: Record<
@@ -105,7 +106,14 @@ interface TournamentDetailViewProps {
     awayPenalties?: number,
     penaltyWinnerId?: string,
     liveMinute?: string,
-    liveStage?: '1T' | 'Medio Tiempo' | '2T' | 'Tiempo Extra'
+    liveStage?: '1T' | 'Medio Tiempo' | '2T' | 'Tiempo Extra',
+    timerData?: {
+      period?: number;
+      startedAt?: number;
+      firstHalfDurationSeconds?: number;
+      secondHalfStartedAt?: number;
+      isTimerRunning?: boolean;
+    }
   ) => void;
   onUpdateStatus?: (tournamentId: string, newStatus: TournamentStatus) => void;
   onUpdateTournamentRules?: (tournamentId: string, rules: TournamentRules) => void;
@@ -1105,10 +1113,11 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
                               Finalizado
                             </span>
                           ) : isLive ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 animate-pulse">
-                              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
-                              🔴 EN VIVO {match.liveMinute ? `• ${match.liveStage ? `${match.liveStage} ` : ''}${match.liveMinute}` : (match.liveStage ? `• ${match.liveStage}` : '')}
-                            </span>
+                            <LiveTimerBadge 
+                              match={match} 
+                              halfDurationMinutes={tournament.rules?.halfDurationMinutes ?? 35} 
+                              size="md"
+                            />
                           ) : (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -1404,8 +1413,8 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
           setIsScoreModalOpen(false);
           setSelectedMatchForScore(null);
         }}
-        onSave={(matchId, homeScore, awayScore, status, homePenalties, awayPenalties, penaltyWinnerId, liveMinute, liveStage) => {
-          onUpdateScore(matchId, homeScore, awayScore, status, homePenalties, awayPenalties, penaltyWinnerId, liveMinute, liveStage);
+        onSave={(matchId, homeScore, awayScore, status, homePenalties, awayPenalties, penaltyWinnerId, liveMinute, liveStage, timerData) => {
+          onUpdateScore(matchId, homeScore, awayScore, status, homePenalties, awayPenalties, penaltyWinnerId, liveMinute, liveStage, timerData);
           setIsScoreModalOpen(false);
           setSelectedMatchForScore(null);
         }}

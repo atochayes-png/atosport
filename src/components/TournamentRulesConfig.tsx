@@ -12,7 +12,8 @@ import {
   Check,
   Lock,
   ShieldAlert,
-  UserCheck
+  UserCheck,
+  Clock
 } from 'lucide-react';
 import { TournamentRules, DEFAULT_TOURNAMENT_RULES, TieBreakerCriterion } from '../types/tournament';
 
@@ -65,6 +66,8 @@ export const TournamentRulesConfig: React.FC<TournamentRulesConfigProps> = ({
         tieBreakerPriority: 'Diferencia de Goles',
         minMatchesForPlayoffs: 6,
         blockIneligiblePlayoffs: true,
+        halfDurationMinutes: 45,
+        totalPeriods: 2,
       }));
     } else if (preset === 'futbol7') {
       setRules((prev) => ({
@@ -78,6 +81,8 @@ export const TournamentRulesConfig: React.FC<TournamentRulesConfigProps> = ({
         tieBreakerPriority: 'Diferencia de Goles',
         minMatchesForPlayoffs: 5,
         blockIneligiblePlayoffs: true,
+        halfDurationMinutes: 25,
+        totalPeriods: 2,
       }));
     } else if (preset === 'tradicional') {
       setRules((prev) => ({
@@ -91,6 +96,8 @@ export const TournamentRulesConfig: React.FC<TournamentRulesConfigProps> = ({
         tieBreakerPriority: 'Goles a Favor',
         minMatchesForPlayoffs: 6,
         blockIneligiblePlayoffs: true,
+        halfDurationMinutes: 35,
+        totalPeriods: 2,
       }));
     }
     setHasChanges(true);
@@ -474,6 +481,118 @@ export const TournamentRulesConfig: React.FC<TournamentRulesConfigProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Card: Configuración de Tiempos y Cronómetro Oficial */}
+          <div className="p-6 rounded-3xl bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80">
+              <div className="flex items-center gap-2.5">
+                <Clock className="w-5 h-5 text-emerald-500" />
+                <div>
+                  <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
+                    Configuración de Tiempos y Cronómetro Oficial
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Control de duración reglamentaria y lapsos para el cronómetro continuo en vivo
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                En Vivo
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Parámetro 1: Duración de cada tiempo (minutos) */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#070A0F] border border-slate-200/80 dark:border-slate-800/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Duración de cada tiempo (minutos)
+                  </label>
+                  <span className="text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded">
+                    Por tiempo
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="5"
+                    max="60"
+                    value={rules.halfDurationMinutes ?? 35}
+                    onChange={(e) => updateRule('halfDurationMinutes', Math.max(5, parseInt(e.target.value) || 35))}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#0B0F17] border border-slate-300 dark:border-slate-700 text-center font-black text-xl text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                  />
+                  <span className="text-xs font-bold text-slate-400">MIN</span>
+                </div>
+
+                {/* Quick duration presets */}
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {[
+                    { label: '25m (F7)', val: 25 },
+                    { label: '30m', val: 30 },
+                    { label: '35m (Veteranos Modelo)', val: 35 },
+                    { label: '40m', val: 40 },
+                    { label: '45m (FIFA)', val: 45 },
+                  ].map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => updateRule('halfDurationMinutes', preset.val)}
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all border ${
+                        (rules.halfDurationMinutes ?? 35) === preset.val
+                          ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/40'
+                          : 'bg-white dark:bg-[#0B0F17] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-slate-400 leading-tight pt-0.5">
+                  Minutos por periodo (ej. 35 min para ligas como Veteranos Modelo, 45 min para Libre).
+                </p>
+              </div>
+
+              {/* Parámetro 2: Número de tiempos reglamentarios */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#070A0F] border border-slate-200/80 dark:border-slate-800/80 space-y-2 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Número de tiempos reglamentarios
+                    </label>
+                    <span className="text-[10px] font-black uppercase bg-blue-500/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded">
+                      Selector
+                    </span>
+                  </div>
+
+                  <select
+                    value={rules.totalPeriods ?? 2}
+                    onChange={(e) => updateRule('totalPeriods', parseInt(e.target.value) || 2)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#0B0F17] border border-slate-300 dark:border-slate-700 font-bold text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value={2}>2 tiempos reglamentarios (1er y 2do Tiempo)</option>
+                    <option value={4}>4 cuartos reglamentarios</option>
+                  </select>
+
+                  <div className="mt-3 p-2.5 rounded-xl bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span>Total Partido:</span>
+                      <strong className="text-slate-900 dark:text-white font-black">
+                        {(rules.totalPeriods ?? 2) * (rules.halfDurationMinutes ?? 35)} minutos
+                      </strong>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-slate-500">
+                      <span>1T: 00:00 a {rules.halfDurationMinutes ?? 35}:00</span>
+                      <span>2T: {rules.halfDurationMinutes ?? 35}:00 a {(rules.totalPeriods ?? 2) * (rules.halfDurationMinutes ?? 35)}:00</span>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-slate-400 leading-tight">
+                  Define el silbatazo de Medio Tiempo y el inicio continuo del 2do tiempo.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Right Column: Tie-Breakers & Live Preview */}
@@ -587,6 +706,13 @@ export const TournamentRulesConfig: React.FC<TournamentRulesConfigProps> = ({
                 <span className="text-slate-600 dark:text-slate-400">Bloqueo Liguilla:</span>
                 <strong className={`font-extrabold ${rules.blockIneligiblePlayoffs ? 'text-red-500' : 'text-slate-400'}`}>
                   {rules.blockIneligiblePlayoffs ? 'Estricto (Activo)' : 'Permisivo'}
+                </strong>
+              </div>
+
+              <div className="flex items-center justify-between p-2 rounded-xl bg-white/80 dark:bg-[#0B0F17]/80 border border-emerald-500/30">
+                <span className="text-slate-600 dark:text-slate-400">Duración de Partido:</span>
+                <strong className="text-emerald-500 font-extrabold">
+                  {rules.totalPeriods ?? 2} x {rules.halfDurationMinutes ?? 35} min ({((rules.totalPeriods ?? 2) * (rules.halfDurationMinutes ?? 35))} min reglamentarios)
                 </strong>
               </div>
             </div>

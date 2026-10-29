@@ -20,6 +20,8 @@ export interface TournamentRules {
   tieBreakerPriority: TieBreakerCriterion; // Criterio de desempate en tabla
   minMatchesForPlayoffs: number; // Mínimo de partidos en fase regular para liguilla (default: 6)
   blockIneligiblePlayoffs: boolean; // Bloqueo automático de alineación indebida en Liguilla (default: true)
+  halfDurationMinutes: number; // Duración de cada tiempo reglamentario en minutos (default: 35)
+  totalPeriods: number;        // Número de tiempos reglamentarios (default: 2)
 }
 
 export const DEFAULT_TOURNAMENT_RULES: TournamentRules = {
@@ -32,6 +34,8 @@ export const DEFAULT_TOURNAMENT_RULES: TournamentRules = {
   tieBreakerPriority: 'Diferencia de Goles',
   minMatchesForPlayoffs: 6,
   blockIneligiblePlayoffs: true,
+  halfDurationMinutes: 35,
+  totalPeriods: 2,
 };
 
 export interface InitialTeamStats {

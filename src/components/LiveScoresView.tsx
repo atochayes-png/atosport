@@ -4,6 +4,7 @@ import { Match as AppMatch } from '../types/match';
 import { Team } from '../types/team';
 import { Tournament } from '../types/tournament';
 import { useAuth } from '../context/AuthContext';
+import { LiveTimerBadge } from '../utils/matchTimer';
 
 interface LiveScoresViewProps {
   matches?: AppMatch[];
@@ -89,10 +90,11 @@ export const LiveScoresView: React.FC<LiveScoresViewProps> = ({
                   </span>
 
                   {isLive && (
-                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 font-black text-[11px] uppercase animate-pulse">
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
-                      <span>EN VIVO {match.liveMinute ? `• ${match.liveStage ? `${match.liveStage} ` : ''}${match.liveMinute}` : (match.liveStage || '')}</span>
-                    </div>
+                    <LiveTimerBadge 
+                      match={match} 
+                      halfDurationMinutes={tournament?.rules?.halfDurationMinutes ?? 35} 
+                      size="md"
+                    />
                   )}
 
                   {!isLive && !isFinished && (

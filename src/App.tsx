@@ -48,6 +48,8 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
       tieBreakerPriority: 'Diferencia de Goles',
       minMatchesForPlayoffs: 6,
       blockIneligiblePlayoffs: true,
+      halfDurationMinutes: 35,
+      totalPeriods: 2,
     },
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
   },
@@ -426,7 +428,14 @@ function AppContent() {
     awayPenalties?: number,
     penaltyWinnerId?: string,
     liveMinute?: string,
-    liveStage?: '1T' | 'Medio Tiempo' | '2T' | 'Tiempo Extra'
+    liveStage?: '1T' | 'Medio Tiempo' | '2T' | 'Tiempo Extra',
+    timerData?: {
+      period?: number;
+      startedAt?: number;
+      firstHalfDurationSeconds?: number;
+      secondHalfStartedAt?: number;
+      isTimerRunning?: boolean;
+    }
   ) => {
     setMatches((prev) =>
       prev.map((m) =>
@@ -440,7 +449,8 @@ function AppContent() {
               awayPenalties,
               penaltyWinnerId,
               liveMinute,
-              liveStage
+              liveStage,
+              ...(timerData || {})
             }
           : m
       )
@@ -681,8 +691,8 @@ function AppContent() {
           tournament={tournaments.find((t) => t.id === activeMatchForScore.tournamentId)}
           allMatches={matches}
           onClose={() => setActiveMatchForScore(null)}
-          onSave={(matchId, homeScore, awayScore, status, homePenalties, awayPenalties, penaltyWinnerId, liveMinute, liveStage) => {
-            handleUpdateScore(matchId, homeScore, awayScore, status, homePenalties, awayPenalties, penaltyWinnerId, liveMinute, liveStage);
+          onSave={(matchId, homeScore, awayScore, status, homePenalties, awayPenalties, penaltyWinnerId, liveMinute, liveStage, timerData) => {
+            handleUpdateScore(matchId, homeScore, awayScore, status, homePenalties, awayPenalties, penaltyWinnerId, liveMinute, liveStage, timerData);
             setActiveMatchForScore(null);
           }}
         />
