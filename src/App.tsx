@@ -20,6 +20,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoginView } from './components/LoginView';
 import { LiveMatchesBanner } from './components/LiveMatchesBanner';
 import { ScoreModal } from './components/ScoreModal';
+import { useRealtimeLiveMatches, broadcastMatchLiveUpdate, MatchLiveUpdatePayload } from './services/realtimeMatchService';
 
 const STORAGE_KEY = 'atosport_tournaments';
 const TEAMS_STORAGE_KEY = 'atosport_teams';
@@ -248,6 +249,40 @@ function AppContent() {
     }
   }, [matches]);
 
+  // Sincronización en Tiempo Real Multidispositivo con Supabase Realtime
+  useRealtimeLiveMatches((payload: MatchLiveUpdatePayload) => {
+    setMatches((prev) =>
+      prev.map((m) =>
+        m.id === payload.matchId
+          ? {
+              ...m,
+              homeScore: payload.homeScore,
+              awayScore: payload.awayScore,
+              status: payload.status,
+              period: payload.period,
+              startedAt: payload.startedAt,
+              secondHalfStartedAt: payload.secondHalfStartedAt,
+              firstHalfDurationSeconds: payload.firstHalfDurationSeconds,
+              isTimerRunning: payload.isTimerRunning,
+              liveMinute: payload.liveMinute,
+              liveStage: payload.liveStage,
+              homePenalties: payload.homePenalties,
+              awayPenalties: payload.awayPenalties,
+              penaltyWinnerId: payload.penaltyWinnerId,
+            }
+          : m
+      )
+    );
+
+    const target = matches.find((m) => m.id === payload.matchId);
+    if (target) {
+      const home = teams.find((t) => t.id === target.homeTeamId)?.name || 'Local';
+      const away = teams.find((t) => t.id === target.awayTeamId)?.name || 'Visitante';
+      setNotification(`⚡ [Realtime] En vivo: ${home} ${payload.homeScore} - ${payload.awayScore} ${away}`);
+      setTimeout(() => setNotification(null), 3000);
+    }
+  });
+
   // Synchronize registered teams count with tournament stats
   useEffect(() => {
     setTournaments((prev) =>
@@ -459,6 +494,26 @@ function AppContent() {
     const targetMatch = matches.find((m) => m.id === matchId);
     const home = teams.find((t) => t.id === targetMatch?.homeTeamId)?.name || 'Local';
     const away = teams.find((t) => t.id === targetMatch?.awayTeamId)?.name || 'Visitante';
+
+    // Emisión en tiempo real vía Supabase Realtime para espectadores y dispositivos remotos
+    broadcastMatchLiveUpdate({
+      matchId,
+      tournamentId: targetMatch?.tournamentId || '',
+      status,
+      period: timerData?.period,
+      homeScore,
+      awayScore,
+      startedAt: timerData?.startedAt,
+      secondHalfStartedAt: timerData?.secondHalfStartedAt,
+      firstHalfDurationSeconds: timerData?.firstHalfDurationSeconds,
+      isTimerRunning: timerData?.isTimerRunning,
+      liveMinute,
+      liveStage,
+      homePenalties,
+      awayPenalties,
+      penaltyWinnerId,
+      updatedAt: Date.now(),
+    });
 
     if (status === 'En Vivo') {
       const timeStr = liveMinute ? `${liveStage ? `${liveStage} ` : ''}${liveMinute}` : (liveStage || 'En Vivo');

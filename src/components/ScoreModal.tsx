@@ -399,6 +399,34 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
     }
   };
 
+  const updateScoreAndBroadcast = (newHome: number, newAway: number) => {
+    const safeHome = Math.max(0, newHome);
+    const safeAway = Math.max(0, newAway);
+    setHomeScore(safeHome);
+    setAwayScore(safeAway);
+
+    if (status === 'En Vivo') {
+      onSave(
+        match.id,
+        safeHome,
+        safeAway,
+        'En Vivo',
+        undefined,
+        undefined,
+        undefined,
+        timer.clockDisplay,
+        liveStage,
+        {
+          period,
+          startedAt,
+          firstHalfDurationSeconds,
+          secondHalfStartedAt,
+          isTimerRunning,
+        }
+      );
+    }
+  };
+
   const handleRegisterPlayerEvent = (player: Player, isHome: boolean) => {
     const isPlayoffs = Boolean(match.isPlayoffs || (match.stage && match.stage !== 'Fase Regular'));
     const blockIneligible = rules?.blockIneligiblePlayoffs ?? true;
@@ -418,11 +446,9 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
     }
 
     if (selectedEventType === 'Gol') {
-      if (isHome) {
-        setHomeScore((prev) => prev + 1);
-      } else {
-        setAwayScore((prev) => prev + 1);
-      }
+      const newHome = isHome ? homeScore + 1 : homeScore;
+      const newAway = isHome ? awayScore : awayScore + 1;
+      updateScoreAndBroadcast(newHome, newAway);
     }
 
     setEventSuccessMsg(`✓ ${selectedEventType} registrado a ${player.name} (#${player.number})`);
@@ -500,7 +526,7 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
                 <div className="flex items-center gap-1.5 sm:gap-2 pt-1">
                   <button
                     type="button"
-                    onClick={() => setHomeScore((prev) => Math.max(0, prev - 1))}
+                    onClick={() => updateScoreAndBroadcast(Math.max(0, homeScore - 1), awayScore)}
                     className="w-8 h-8 rounded-lg bg-white dark:bg-[#0B0F17] border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition-all"
                     aria-label="Restar gol local"
                   >
@@ -512,13 +538,13 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
                     min={0}
                     max={99}
                     value={homeScore}
-                    onChange={(e) => setHomeScore(Math.max(0, parseInt(e.target.value) || 0))}
+                    onChange={(e) => updateScoreAndBroadcast(Math.max(0, parseInt(e.target.value) || 0), awayScore)}
                     className="w-12 h-10 rounded-xl bg-white dark:bg-[#0B0F17] border border-slate-300 dark:border-slate-700 text-center font-black text-xl text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                   />
 
                   <button
                     type="button"
-                    onClick={() => setHomeScore((prev) => prev + 1)}
+                    onClick={() => updateScoreAndBroadcast(homeScore + 1, awayScore)}
                     className="w-8 h-8 rounded-lg bg-emerald-500 text-slate-950 flex items-center justify-center hover:bg-emerald-400 active:scale-95 font-bold transition-all shadow-sm"
                     aria-label="Sumar gol local"
                   >
@@ -561,7 +587,7 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
                 <div className="flex items-center gap-1.5 sm:gap-2 pt-1">
                   <button
                     type="button"
-                    onClick={() => setAwayScore((prev) => Math.max(0, prev - 1))}
+                    onClick={() => updateScoreAndBroadcast(homeScore, Math.max(0, awayScore - 1))}
                     className="w-8 h-8 rounded-lg bg-white dark:bg-[#0B0F17] border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition-all"
                     aria-label="Restar gol visitante"
                   >
@@ -573,13 +599,13 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
                     min={0}
                     max={99}
                     value={awayScore}
-                    onChange={(e) => setAwayScore(Math.max(0, parseInt(e.target.value) || 0))}
+                    onChange={(e) => updateScoreAndBroadcast(homeScore, Math.max(0, parseInt(e.target.value) || 0))}
                     className="w-12 h-10 rounded-xl bg-white dark:bg-[#0B0F17] border border-slate-300 dark:border-slate-700 text-center font-black text-xl text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                   />
 
                   <button
                     type="button"
-                    onClick={() => setAwayScore((prev) => prev + 1)}
+                    onClick={() => updateScoreAndBroadcast(homeScore, awayScore + 1)}
                     className="w-8 h-8 rounded-lg bg-emerald-500 text-slate-950 flex items-center justify-center hover:bg-emerald-400 active:scale-95 font-bold transition-all shadow-sm"
                     aria-label="Sumar gol visitante"
                   >

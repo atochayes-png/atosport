@@ -52,9 +52,16 @@ export const LiveMatchesBanner: React.FC<LiveMatchesBannerProps> = ({
           </div>
         </div>
 
-        <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-          <Clock className="w-3.5 h-3.5 text-red-400" />
-          <span>Marcadores actualizados en tiempo real</span>
+        <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2">
+          <span className="inline-flex items-center gap-1 text-emerald-500 dark:text-emerald-400 font-bold">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Supabase Realtime</span>
+          </span>
+          <span>•</span>
+          <span className="flex items-center gap-1">
+            <Clock className="w-3.5 h-3.5 text-red-400" />
+            <span>Marcadores en vivo</span>
+          </span>
         </div>
       </div>
 
