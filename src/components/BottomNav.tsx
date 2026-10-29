@@ -1,5 +1,6 @@
 import React from 'react';
 import { Trophy, Activity, Calendar, Plus } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface BottomNavProps {
   currentTab: 'dashboard' | 'tournaments' | 'scores';
@@ -12,6 +13,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   onNavigate,
   onOpenNewTournament,
 }) => {
+  const { canManageTournaments } = useAuth();
   return (
     <nav 
       aria-label="Navegación móvil inferior"
@@ -54,16 +56,18 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           <span className="text-[10px] mt-1 tracking-tight">Torneos</span>
         </button>
 
-        {/* Central Action Button (+ Crear) */}
-        <div className="flex-1 flex justify-center -mt-4">
-          <button
-            onClick={onOpenNewTournament}
-            aria-label="Crear nuevo torneo"
-            className="w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-500 to-emerald-400 text-slate-950 flex items-center justify-center shadow-md dark:shadow-emerald-glow active:scale-95 transition-transform"
-          >
-            <Plus className="w-6 h-6 stroke-[3]" />
-          </button>
-        </div>
+        {/* Central Action Button (+ Crear) - Only for tournament managers */}
+        {canManageTournaments() && (
+          <div className="flex-1 flex justify-center -mt-4">
+            <button
+              onClick={onOpenNewTournament}
+              aria-label="Crear nuevo torneo"
+              className="w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-500 to-emerald-400 text-slate-950 flex items-center justify-center shadow-md dark:shadow-emerald-glow active:scale-95 transition-transform"
+            >
+              <Plus className="w-6 h-6 stroke-[3]" />
+            </button>
+          </div>
+        )}
 
         {/* Tab Marcadores */}
         <button

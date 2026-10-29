@@ -16,6 +16,8 @@ import { INITIAL_MATCHDAYS, INITIAL_MATCHES } from './data/initialMatches';
 import { INITIAL_PLAYERS, INITIAL_TEAM_FINANCES } from './data/initialPlayers';
 import { CheckCircle2 } from 'lucide-react';
 import { ThemeProvider } from './context/ThemeContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { LoginView } from './components/LoginView';
 
 const STORAGE_KEY = 'atosport_tournaments';
 const TEAMS_STORAGE_KEY = 'atosport_teams';
@@ -82,6 +84,7 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
 ];
 
 function AppContent() {
+  const { currentUser } = useAuth();
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'tournaments' | 'scores'>('dashboard');
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -518,6 +521,11 @@ function AppContent() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // If no user is authenticated, render the dedicated Login / Registration screen
+  if (!currentUser) {
+    return <LoginView />;
+  }
+
   // Find currently active tournament for detail view
   const selectedTournament = tournaments.find((t) => t.id === selectedTournamentId);
 
@@ -640,7 +648,9 @@ function AppContent() {
 export function App() {
   return (
     <ThemeProvider>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ThemeProvider>
   );
 }

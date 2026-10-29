@@ -9,7 +9,8 @@ import {
   RotateCcw, 
   Sparkles, 
   Sliders, 
-  Check 
+  Check,
+  Lock
 } from 'lucide-react';
 import { TournamentRules, DEFAULT_TOURNAMENT_RULES, TieBreakerCriterion } from '../types/tournament';
 
@@ -17,6 +18,7 @@ interface TournamentRulesConfigProps {
   initialRules?: TournamentRules;
   tournamentName: string;
   sport: string;
+  readOnly?: boolean;
   onSave: (rules: TournamentRules) => void;
 }
 
@@ -24,6 +26,7 @@ export const TournamentRulesConfig: React.FC<TournamentRulesConfigProps> = ({
   initialRules,
   tournamentName,
   sport,
+  readOnly = false,
   onSave,
 }) => {
   const [rules, setRules] = useState<TournamentRules>(() => {
@@ -40,7 +43,7 @@ export const TournamentRulesConfig: React.FC<TournamentRulesConfigProps> = ({
   }, [initialRules]);
 
   const updateRule = <K extends keyof TournamentRules>(key: K, value: TournamentRules[K]) => {
-    setRules((prev) => ({ ...prev, [key]: value }));
+    setRules((prev: TournamentRules) => ({ ...prev, [key]: value }));
     setHasChanges(true);
     setSaveSuccess(false);
   };
@@ -123,34 +126,43 @@ export const TournamentRulesConfig: React.FC<TournamentRulesConfigProps> = ({
           </div>
 
           <div className="flex items-center gap-2 self-start md:self-auto">
-            <button
-              type="button"
-              onClick={handleResetDefaults}
-              className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Restablecer</span>
-            </button>
-            <button
-              onClick={handleSave}
-              className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-md flex items-center gap-2 ${
-                hasChanges
-                  ? 'text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 shadow-emerald-glow'
-                  : 'text-slate-400 dark:text-slate-500 bg-slate-200 dark:bg-slate-800 cursor-default'
-              }`}
-            >
-              {saveSuccess ? (
-                <>
-                  <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>¡Reglamento Guardado!</span>
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  <span>Guardar Reglamento</span>
-                </>
-              )}
-            </button>
+            {readOnly ? (
+              <span className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 flex items-center gap-1.5">
+                <Lock className="w-3.5 h-3.5 text-slate-400" />
+                <span>Modo Solo Lectura (Solo Admins)</span>
+              </span>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={handleResetDefaults}
+                  className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Restablecer</span>
+                </button>
+                <button
+                  onClick={handleSave}
+                  className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-md flex items-center gap-2 ${
+                    hasChanges
+                      ? 'text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 shadow-emerald-glow'
+                      : 'text-slate-400 dark:text-slate-500 bg-slate-200 dark:bg-slate-800 cursor-default'
+                  }`}
+                >
+                  {saveSuccess ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      <span>¡Reglamento Guardado!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>Guardar Reglamento</span>
+                    </>
+                  )}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

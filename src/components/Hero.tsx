@@ -1,5 +1,6 @@
 import React from 'react';
 import { Trophy, Plus, Shield, Zap, FileSpreadsheet, Users } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface HeroProps {
   onOpenNewTournament: () => void;
@@ -10,6 +11,7 @@ export const Hero: React.FC<HeroProps> = ({
   onOpenNewTournament,
   onExploreTournaments,
 }) => {
+  const { canManageTournaments } = useAuth();
   return (
     <div className="relative overflow-hidden py-8 sm:py-12 lg:py-16 transition-colors duration-200">
       {/* Decorative gradient glow in the background */}
@@ -35,13 +37,15 @@ export const Hero: React.FC<HeroProps> = ({
 
             {/* Quick Actions (Full-width friendly on mobile) */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2">
-              <button
-                onClick={onOpenNewTournament}
-                className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl font-bold text-sm sm:text-base text-slate-950 bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-400 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 shadow-md dark:shadow-emerald-glow transition-all duration-200 min-h-[48px]"
-              >
-                <Plus className="w-5 h-5 stroke-[2.5]" />
-                <span>+ Crear Nuevo Torneo</span>
-              </button>
+              {canManageTournaments() && (
+                <button
+                  onClick={onOpenNewTournament}
+                  className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl font-bold text-sm sm:text-base text-slate-950 bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-400 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 shadow-md dark:shadow-emerald-glow transition-all duration-200 min-h-[48px]"
+                >
+                  <Plus className="w-5 h-5 stroke-[2.5]" />
+                  <span>+ Crear Nuevo Torneo</span>
+                </button>
+              )}
 
               <button
                 onClick={onExploreTournaments}

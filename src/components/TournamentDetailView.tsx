@@ -23,18 +23,21 @@ import {
   Edit3,
   ChevronDown,
   Check,
-  Scale
+  Scale,
+  Lock
 } from 'lucide-react';
 import { Tournament, TournamentStatus, TournamentRules } from '../types/tournament';
 import { Team, TournamentDetailTab } from '../types/team';
 import { Match, Matchday, MatchStatus } from '../types/match';
 import { Player, TeamFinance } from '../types/player';
+import { useAuth } from '../context/AuthContext';
 import { NewTeamModal } from './NewTeamModal';
 import { NewMatchModal } from './NewMatchModal';
 import { ScoreModal } from './ScoreModal';
 import { StandingsTable } from './StandingsTable';
 import { TeamRosterView } from './TeamRosterView';
 import { TournamentRulesConfig } from './TournamentRulesConfig';
+import { PlayerProfileView } from './PlayerProfileView';
 
 const STATUS_CONFIG: Record<
   TournamentStatus,
@@ -127,7 +130,24 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
   onDeletePlayer,
   onUpdateFinance,
 }) => {
-  const [activeTab, setActiveTab] = useState<TournamentDetailTab>('equipos');
+  const { 
+    currentUser, 
+    canManageTournaments, 
+    canManageTeams, 
+    canManageRoster, 
+    canEditScores, 
+    canManageRules, 
+    canManageSchedules, 
+    isPlayer, 
+    isReferee, 
+    isCaptain 
+  } = useAuth();
+
+  const [activeTab, setActiveTab] = useState<TournamentDetailTab>(() => {
+    if (isPlayer()) return 'credencial';
+    if (isReferee()) return 'rol';
+    return 'equipos';
+  });
   const [selectedTeamForRoster, setSelectedTeamForRoster] = useState<Team | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isNewTeamModalOpen, setIsNewTeamModalOpen] = useState(false);
@@ -135,6 +155,13 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
   const [isScoreModalOpen, setIsScoreModalOpen] = useState(false);
   const [selectedMatchForScore, setSelectedMatchForScore] = useState<Match | null>(null);
   const [copyToast, setCopyToast] = useState(false);
+
+  // Switch default tab if user switches role
+  useEffect(() => {
+    if (isPlayer()) {
+      setActiveTab('credencial');
+    }
+  }, [currentUser?.role]);
 
   // Interactive Tournament Status Selector state
   const [currentStatus, setCurrentStatus] = useState<TournamentStatus>(tournament.status);
@@ -341,69 +368,79 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
                 {tournament.sport}
               </span>
 
-              {/* Interactive Tournament Status Selector */}
-              <div className="relative inline-block" ref={statusMenuRef}>
-                <button
-                  type="button"
-                  onClick={() => setIsStatusMenuOpen((prev) => !prev)}
-                  aria-haspopup="listbox"
-                  aria-expanded={isStatusMenuOpen}
-                  title="Haz clic para cambiar el estado del torneo"
-                  className={`group inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border shadow-sm transition-all duration-200 cursor-pointer select-none active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 ${currentStatusConfig.badgeClass}`}
+              {/* Tournament Status Indicator (Interactive only for organizers) */}
+              {canManageTournaments() ? (
+                <div className="relative inline-block" ref={statusMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsStatusMenuOpen((prev) => !prev)}
+                    aria-haspopup="listbox"
+                    aria-expanded={isStatusMenuOpen}
+                    title="Haz clic para cambiar el estado del torneo"
+                    className={`group inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border shadow-sm transition-all duration-200 cursor-pointer select-none active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 ${currentStatusConfig.badgeClass}`}
+                  >
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${currentStatusConfig.dotClass}`} />
+                    <span>{currentStatusConfig.badgeLabel}</span>
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 opacity-60 group-hover:opacity-100 transition-transform duration-200 ${
+                        isStatusMenuOpen ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+
+                  {isStatusMenuOpen && (
+                    <div
+                      role="listbox"
+                      className="absolute left-0 mt-2 w-64 p-1.5 rounded-2xl bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md"
+                    >
+                      <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800/80 mb-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                          Cambiar Estado del Torneo
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        {(Object.keys(STATUS_CONFIG) as TournamentStatus[]).map((statusKey) => {
+                          const cfg = STATUS_CONFIG[statusKey];
+                          const isSelected = currentStatus === statusKey;
+                          return (
+                            <button
+                              key={statusKey}
+                              type="button"
+                              role="option"
+                              aria-selected={isSelected}
+                              onClick={() => handleStatusSelect(statusKey)}
+                              className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold transition-all ${
+                                isSelected
+                                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-bold'
+                                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dotClass}`} />
+                                <div className="truncate">
+                                  <div className="leading-snug">{cfg.label}</div>
+                                  <div className="text-[10px] font-normal text-slate-400 dark:text-slate-500 truncate">
+                                    {cfg.description}
+                                  </div>
+                                </div>
+                              </div>
+                              {isSelected && <Check className="w-4 h-4 text-emerald-500 shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${currentStatusConfig.badgeClass}`}
+                  title="Estado oficial del torneo"
                 >
                   <span className={`w-2 h-2 rounded-full shrink-0 ${currentStatusConfig.dotClass}`} />
                   <span>{currentStatusConfig.badgeLabel}</span>
-                  <ChevronDown
-                    className={`w-3.5 h-3.5 opacity-60 group-hover:opacity-100 transition-transform duration-200 ${
-                      isStatusMenuOpen ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
-
-                {isStatusMenuOpen && (
-                  <div
-                    role="listbox"
-                    className="absolute left-0 mt-2 w-64 p-1.5 rounded-2xl bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md"
-                  >
-                    <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800/80 mb-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                        Cambiar Estado del Torneo
-                      </span>
-                    </div>
-                    <div className="space-y-1">
-                      {(Object.keys(STATUS_CONFIG) as TournamentStatus[]).map((statusKey) => {
-                        const cfg = STATUS_CONFIG[statusKey];
-                        const isSelected = currentStatus === statusKey;
-                        return (
-                          <button
-                            key={statusKey}
-                            type="button"
-                            role="option"
-                            aria-selected={isSelected}
-                            onClick={() => handleStatusSelect(statusKey)}
-                            className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold transition-all ${
-                              isSelected
-                                ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-bold'
-                                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dotClass}`} />
-                              <div className="truncate">
-                                <div className="leading-snug">{cfg.label}</div>
-                                <div className="text-[10px] font-normal text-slate-400 dark:text-slate-500 truncate">
-                                  {cfg.description}
-                                </div>
-                              </div>
-                            </div>
-                            {isSelected && <Check className="w-4 h-4 text-emerald-500 shrink-0" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
 
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800">
                 <Calendar className="w-3.5 h-3.5 text-slate-400" />
@@ -414,10 +451,10 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
                 type="button"
                 onClick={() => setActiveTab('reglas')}
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700/60 transition-all cursor-pointer shadow-xs active:scale-95"
-                title="Configurar reglamento y puntuación del torneo"
+                title={canManageRules() ? 'Configurar reglamento y puntuación' : 'Consultar reglamento oficial'}
               >
                 <Scale className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Reglamento / Puntuación</span>
+                <span>{canManageRules() ? 'Reglamento / Puntuación' : 'Consultar Reglamento'}</span>
               </button>
             </div>
 
@@ -476,24 +513,26 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
               <span className="text-[11px]">Máx: {maxTeams}</span>
             </div>
 
-            <button
-              onClick={() => setIsNewTeamModalOpen(true)}
-              disabled={isFull}
-              className={`w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-sm ${
-                isFull
-                  ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
-                  : 'text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 dark:shadow-emerald-glow'
-              }`}
-            >
-              {isFull ? (
-                <span>Cupo Completo</span>
-              ) : (
-                <>
-                  <Plus className="w-4 h-4 stroke-[2.5]" />
-                  <span>Inscribir Equipo</span>
-                </>
-              )}
-            </button>
+            {canManageTeams() && (
+              <button
+                onClick={() => setIsNewTeamModalOpen(true)}
+                disabled={isFull}
+                className={`w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-sm ${
+                  isFull
+                    ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+                    : 'text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 dark:shadow-emerald-glow'
+                }`}
+              >
+                {isFull ? (
+                  <span>Cupo Completo</span>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 stroke-[2.5]" />
+                    <span>Inscribir Equipo</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -502,9 +541,19 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
       <div className="border-b border-slate-200 dark:border-slate-800/80">
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-2">
           {[
+            ...(isPlayer()
+              ? [
+                  {
+                    id: 'credencial' as TournamentDetailTab,
+                    label: 'Mi Credencial',
+                    icon: Shield,
+                    badge: 'Oficial',
+                  },
+                ]
+              : []),
             {
               id: 'equipos' as TournamentDetailTab,
-              label: 'Equipos',
+              label: isCaptain() ? 'Mi Club / Equipos' : 'Equipos',
               icon: Users,
               badge: registeredCount.toString(),
             },
@@ -522,7 +571,7 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
             },
             {
               id: 'reglas' as TournamentDetailTab,
-              label: 'Reglamento / Puntuación',
+              label: canManageRules() ? 'Reglamento / Puntuación' : 'Reglamento',
               icon: Scale,
               badge: tournament.rules?.penaltiesEnabled ? 'Penales ON' : 'Reglas',
             },
@@ -530,7 +579,7 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
               id: 'cedulas' as TournamentDetailTab,
               label: 'Cédulas Arbitrales',
               icon: FileCheck,
-              badge: null,
+              badge: isReferee() ? 'Árbitro' : null,
             },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -593,24 +642,26 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
               </div>
 
               {/* Action button */}
-              <button
-                onClick={() => setIsNewTeamModalOpen(true)}
-                disabled={isFull}
-                className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all min-h-[40px] ${
-                  isFull
-                    ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
-                    : 'text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 shadow-md dark:shadow-emerald-glow'
-                }`}
-              >
-                {isFull ? (
-                  <span>Cupo Completo</span>
-                ) : (
-                  <>
-                    <Plus className="w-4 h-4 stroke-[2.5]" />
-                    <span>Inscribir Equipo</span>
-                  </>
-                )}
-              </button>
+              {canManageTeams() && (
+                <button
+                  onClick={() => setIsNewTeamModalOpen(true)}
+                  disabled={isFull}
+                  className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all min-h-[40px] ${
+                    isFull
+                      ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+                      : 'text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 shadow-md dark:shadow-emerald-glow'
+                  }`}
+                >
+                  {isFull ? (
+                    <span>Cupo Completo</span>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4 stroke-[2.5]" />
+                      <span>Inscribir Equipo</span>
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
 
@@ -700,19 +751,21 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
                           </div>
                         </div>
 
-                        {/* Delete button */}
-                        <button
-                          onClick={() => {
-                            if (confirm(`¿Deseas desvincular al equipo "${team.name}" de este torneo?`)) {
-                              onDeleteTeam(team.id);
-                            }
-                          }}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 opacity-70 group-hover:opacity-100 transition-all shrink-0"
-                          title="Eliminar equipo"
-                          aria-label={`Eliminar equipo ${team.name}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {/* Delete button (Only for organizers) */}
+                        {canManageTeams() && (
+                          <button
+                            onClick={() => {
+                              if (confirm(`¿Deseas desvincular al equipo "${team.name}" de este torneo?`)) {
+                                onDeleteTeam(team.id);
+                              }
+                            }}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 opacity-70 group-hover:opacity-100 transition-all shrink-0"
+                            title="Eliminar equipo"
+                            aria-label={`Eliminar equipo ${team.name}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
 
                       {/* Team Details Box */}
@@ -783,7 +836,7 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
                         className="w-full py-2.5 px-3 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-slate-800 dark:text-slate-200 transition-all flex items-center justify-center gap-2 border border-slate-200/80 dark:border-slate-700 active:scale-98 group-hover:border-emerald-500/40 cursor-pointer shadow-xs"
                       >
                         <Users className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>Gestionar Plantilla / Roster</span>
+                        <span>{canManageRoster(team.id) ? 'Gestionar Plantilla / Roster' : 'Ver Plantilla Oficial'}</span>
                       </button>
 
                       {/* Card Footer: Alta Date */}
@@ -821,27 +874,31 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
             </div>
 
             <div className="flex items-center gap-2.5">
-              <button
-                onClick={() => {
-                  onAddMatchday(tournament.id);
-                  const nextNumber = tournamentMatchdays.length > 0 
-                    ? Math.max(...tournamentMatchdays.map((m) => m.number)) + 1 
-                    : 1;
-                  setSelectedMatchdayNumber(nextNumber);
-                }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 bg-white dark:bg-[#0B0F17] hover:bg-slate-50 dark:hover:bg-slate-800/80 border border-slate-200 dark:border-slate-800 shadow-sm transition-all min-h-[38px]"
-              >
-                <Plus className="w-3.5 h-3.5 text-emerald-500 stroke-[3]" />
-                <span>+ Nueva Jornada</span>
-              </button>
+              {canManageSchedules() && (
+                <>
+                  <button
+                    onClick={() => {
+                      onAddMatchday(tournament.id);
+                      const nextNumber = tournamentMatchdays.length > 0 
+                        ? Math.max(...tournamentMatchdays.map((m) => m.number)) + 1 
+                        : 1;
+                      setSelectedMatchdayNumber(nextNumber);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 bg-white dark:bg-[#0B0F17] hover:bg-slate-50 dark:hover:bg-slate-800/80 border border-slate-200 dark:border-slate-800 shadow-sm transition-all min-h-[38px]"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-emerald-500 stroke-[3]" />
+                    <span>+ Nueva Jornada</span>
+                  </button>
 
-              <button
-                onClick={() => setIsNewMatchModalOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 shadow-md dark:shadow-emerald-glow transition-all min-h-[38px]"
-              >
-                <Swords className="w-4 h-4 stroke-[2.5]" />
-                <span>+ Programar Partido</span>
-              </button>
+                  <button
+                    onClick={() => setIsNewMatchModalOpen(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 shadow-md dark:shadow-emerald-glow transition-all min-h-[38px]"
+                  >
+                    <Swords className="w-4 h-4 stroke-[2.5]" />
+                    <span>+ Programar Partido</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -852,15 +909,17 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>Aún no hay jornadas registradas para este torneo.</span>
               </div>
-              <button
-                onClick={() => {
-                  onAddMatchday(tournament.id);
-                  setSelectedMatchdayNumber(1);
-                }}
-                className="px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-400 transition-colors"
-              >
-                Crear Jornada 1
-              </button>
+              {canManageSchedules() && (
+                <button
+                  onClick={() => {
+                    onAddMatchday(tournament.id);
+                    setSelectedMatchdayNumber(1);
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-400 transition-colors"
+                >
+                  Crear Jornada 1
+                </button>
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -907,13 +966,15 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
               </h3>
             </div>
 
-            <button
-              onClick={() => setIsNewMatchModalOpen(true)}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors self-start sm:self-auto"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>Programar otro partido en esta jornada</span>
-            </button>
+            {canManageSchedules() && (
+              <button
+                onClick={() => setIsNewMatchModalOpen(true)}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors self-start sm:self-auto"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>Programar otro partido en esta jornada</span>
+              </button>
+            )}
           </div>
 
           {/* Matches List Grid */}
@@ -1052,29 +1113,39 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
                         </div>
 
                         {/* Score Capture / Edit Action Button */}
-                        <button
-                          onClick={() => {
-                            setSelectedMatchForScore(match);
-                            setIsScoreModalOpen(true);
-                          }}
-                          className={`mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                            isFinished
-                              ? 'text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 bg-white dark:bg-[#0B0F17] hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 shadow-sm'
-                              : 'text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 shadow-sm'
-                          }`}
-                        >
-                          {isFinished ? (
-                            <>
-                              <Edit3 className="w-3 h-3" />
-                              <span>Editar Marcador</span>
-                            </>
-                          ) : (
-                            <>
-                              <Trophy className="w-3 h-3 stroke-[2.5]" />
-                              <span>+ Marcador / Resultado</span>
-                            </>
-                          )}
-                        </button>
+                        {canEditScores() ? (
+                          <button
+                            onClick={() => {
+                              setSelectedMatchForScore(match);
+                              setIsScoreModalOpen(true);
+                            }}
+                            className={`mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                              isFinished
+                                ? 'text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 bg-white dark:bg-[#0B0F17] hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 shadow-sm'
+                                : 'text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 shadow-sm'
+                            }`}
+                          >
+                            {isFinished ? (
+                              <>
+                                <Edit3 className="w-3 h-3" />
+                                <span>Editar Marcador</span>
+                              </>
+                            ) : (
+                              <>
+                                <Trophy className="w-3 h-3 stroke-[2.5]" />
+                                <span>+ Marcador / Resultado</span>
+                              </>
+                            )}
+                          </button>
+                        ) : (
+                          <span
+                            title="Solo Árbitros y Administradores pueden capturar o editar marcadores"
+                            className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 cursor-not-allowed"
+                          >
+                            <Lock className="w-3 h-3" />
+                            <span>{isFinished ? 'Marcador Oficial' : 'Pendiente por Árbitro'}</span>
+                          </span>
+                        )}
                       </div>
 
                       {/* Right: Away Team */}
@@ -1102,18 +1173,20 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
                         </div>
 
                         {/* Delete Match Button */}
-                        <button
-                          onClick={() => {
-                            if (confirm(`¿Deseas eliminar el partido entre ${homeTeam?.name} y ${awayTeam?.name}?`)) {
-                              onDeleteMatch(match.id);
-                            }
-                          }}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 opacity-70 group-hover:opacity-100 transition-all shrink-0 ml-2 order-3"
-                          title="Eliminar partido"
-                          aria-label="Eliminar partido"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {canManageSchedules() && (
+                          <button
+                            onClick={() => {
+                              if (confirm(`¿Deseas eliminar el partido entre ${homeTeam?.name} y ${awayTeam?.name}?`)) {
+                                onDeleteMatch(match.id);
+                              }
+                            }}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 opacity-70 group-hover:opacity-100 transition-all shrink-0 ml-2 order-3"
+                            title="Eliminar partido"
+                            aria-label="Eliminar partido"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1122,6 +1195,18 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
             </div>
           )}
         </div>
+      )}
+
+      {/* TAB CONTENT: CREDENCIAL DIGITAL (JUGADOR) */}
+      {activeTab === 'credencial' && currentUser && (
+        <PlayerProfileView
+          currentUser={currentUser}
+          tournament={tournament}
+          teams={tournamentTeams}
+          matches={tournamentMatches}
+          players={players}
+          teamFinances={teamFinances}
+        />
       )}
 
       {/* TAB CONTENT 3: TABLA DE POSICIONES (DINÁMICA Y AUTOMÁTICA SEGÚN REGLAMENTO) */}
@@ -1140,6 +1225,7 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
           initialRules={tournament.rules}
           tournamentName={tournament.name}
           sport={tournament.sport}
+          readOnly={!canManageRules()}
           onSave={(newRules) => {
             if (onUpdateTournamentRules) {
               onUpdateTournamentRules(tournament.id, newRules);
