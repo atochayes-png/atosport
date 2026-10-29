@@ -6,9 +6,11 @@ import {
   Minus, 
   Plus, 
   Swords,
-  Activity,
   Flame,
-  AlertTriangle
+  AlertTriangle,
+  Radio,
+  Clock,
+  Flag
 } from 'lucide-react';
 import { Team } from '../types/team';
 import { Match, MatchStatus } from '../types/match';
@@ -28,7 +30,9 @@ interface ScoreModalProps {
     status: MatchStatus,
     homePenalties?: number,
     awayPenalties?: number,
-    penaltyWinnerId?: string
+    penaltyWinnerId?: string,
+    liveMinute?: string,
+    liveStage?: '1T' | 'Medio Tiempo' | '2T' | 'Tiempo Extra'
   ) => void;
 }
 
@@ -46,6 +50,8 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
   const [homePenalties, setHomePenalties] = useState<number>(0);
   const [awayPenalties, setAwayPenalties] = useState<number>(0);
   const [status, setStatus] = useState<MatchStatus>('Finalizado');
+  const [liveStage, setLiveStage] = useState<'1T' | 'Medio Tiempo' | '2T' | 'Tiempo Extra'>('1T');
+  const [liveMinute, setLiveMinute] = useState<string>("10'");
   const [penaltyError, setPenaltyError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,6 +61,8 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
       setHomePenalties(match.homePenalties ?? (match.penaltyWinnerId === match.homeTeamId ? 5 : 4));
       setAwayPenalties(match.awayPenalties ?? (match.penaltyWinnerId === match.awayTeamId ? 5 : 4));
       setStatus(match.status === 'Programado' ? 'Finalizado' : match.status);
+      setLiveStage(match.liveStage || '1T');
+      setLiveMinute(match.liveMinute || (match.status === 'En Vivo' ? "45'" : "10'"));
       setPenaltyError(null);
     }
   }, [isOpen, match]);
@@ -80,14 +88,19 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
   const isPenaltiesActive = Boolean(rules?.penaltiesEnabled);
   const showPenaltiesBlock = status === 'Finalizado' && isDraw && isPenaltiesActive;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e?: React.FormEvent, forcedStatus?: MatchStatus) => {
+    if (e) e.preventDefault();
+    const effectiveStatus = forcedStatus || status;
     const safeHomeScore = Math.max(0, homeScore);
     const safeAwayScore = Math.max(0, awayScore);
 
-    if (showPenaltiesBlock) {
+    const isFinished = effectiveStatus === 'Finalizado';
+    const checkPenalties = isFinished && isDraw && isPenaltiesActive;
+
+    if (checkPenalties) {
       if (homePenalties === awayPenalties) {
         setPenaltyError('En la definición por penales debe haber un ganador para otorgar el punto extra.');
+        setStatus('Finalizado');
         return;
       }
       const penaltyWinnerId = homePenalties > awayPenalties ? homeTeam?.id : awayTeam?.id;
@@ -95,20 +108,24 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
         match.id,
         safeHomeScore,
         safeAwayScore,
-        status,
+        effectiveStatus,
         homePenalties,
         awayPenalties,
-        penaltyWinnerId
+        penaltyWinnerId,
+        undefined,
+        undefined
       );
     } else {
       onSave(
         match.id, 
         safeHomeScore, 
         safeAwayScore, 
-        status, 
+        effectiveStatus, 
         undefined, 
         undefined, 
-        undefined
+        undefined,
+        effectiveStatus === 'En Vivo' ? liveMinute : undefined,
+        effectiveStatus === 'En Vivo' ? liveStage : undefined
       );
     }
   };
@@ -411,14 +428,40 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
 
           {/* Match Status Selector */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
-              Estado del Encuentro
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Estado del Encuentro
+              </label>
+              {status === 'En Vivo' && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+                  🔴 En Vivo Ahora
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { id: 'Finalizado' as MatchStatus, label: 'Finalizado', icon: CheckCircle2, desc: 'Computa a tabla' },
-                { id: 'En Vivo' as MatchStatus, label: 'En Vivo', icon: Activity, desc: 'En disputa' },
-                { id: 'Programado' as MatchStatus, label: 'Programado', icon: Swords, desc: 'Pendiente' },
+                { 
+                  id: 'En Vivo' as MatchStatus, 
+                  label: 'EN VIVO', 
+                  icon: Radio, 
+                  desc: 'Minuto a minuto',
+                  activeClass: 'bg-red-500/10 border-red-500 text-red-600 dark:text-red-400 shadow-sm'
+                },
+                { 
+                  id: 'Finalizado' as MatchStatus, 
+                  label: 'Finalizado', 
+                  icon: CheckCircle2, 
+                  desc: 'Resultado oficial',
+                  activeClass: 'bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                },
+                { 
+                  id: 'Programado' as MatchStatus, 
+                  label: 'Programado', 
+                  icon: Swords, 
+                  desc: 'Por disputarse',
+                  activeClass: 'bg-blue-500/10 border-blue-500 text-blue-600 dark:text-blue-400 shadow-sm'
+                },
               ].map((item) => {
                 const Icon = item.icon;
                 const isSelected = status === item.id;
@@ -429,11 +472,7 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
                     onClick={() => setStatus(item.id)}
                     className={`flex flex-col items-center justify-center p-2.5 rounded-xl text-xs font-bold transition-all border ${
                       isSelected
-                        ? item.id === 'Finalizado'
-                          ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-400 shadow-sm'
-                          : item.id === 'En Vivo'
-                          ? 'bg-amber-500/10 border-amber-500 text-amber-600 dark:text-amber-400 shadow-sm'
-                          : 'bg-blue-500/10 border-blue-500 text-blue-600 dark:text-blue-400 shadow-sm'
+                        ? item.activeClass
                         : 'bg-white dark:bg-[#070A0F] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
@@ -446,31 +485,144 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
             </div>
           </div>
 
+          {/* Dedicated Live Controls (Visible when match is 'En Vivo') */}
+          {status === 'En Vivo' && (
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-red-500/10 via-amber-500/5 to-transparent border border-red-500/30 space-y-3.5 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 animate-spin-slow" />
+                  <span>Control de Tiempo de Juego</span>
+                </span>
+                <span className="text-[11px] font-mono font-bold text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded bg-white dark:bg-[#0B0F17] border border-red-500/20">
+                  {liveStage} • {liveMinute}
+                </span>
+              </div>
+
+              {/* Match Stage Selector */}
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 block mb-1.5 tracking-wider">
+                  Etapa del Partido
+                </span>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {(['1T', 'Medio Tiempo', '2T', 'Tiempo Extra'] as const).map((stage) => (
+                    <button
+                      key={stage}
+                      type="button"
+                      onClick={() => setLiveStage(stage)}
+                      className={`px-2 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
+                        liveStage === stage
+                          ? 'bg-red-500 text-white border-red-500 shadow-xs'
+                          : 'bg-white dark:bg-[#0B0F17] border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      {stage}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Minute Input & Quick Chips */}
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 block mb-1.5 tracking-wider">
+                  Minuto Transcurrido
+                </span>
+                <div className="flex items-center gap-2">
+                  <div className="relative w-28">
+                    <input
+                      type="text"
+                      value={liveMinute}
+                      onChange={(e) => setLiveMinute(e.target.value)}
+                      placeholder="ej. 65'"
+                      className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-[#0B0F17] border border-red-400/50 text-center font-bold text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-red-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1 overflow-x-auto py-0.5">
+                    {["15'", "30'", "45'", "60'", "75'", "90'"].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setLiveMinute(preset)}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-semibold transition-all border ${
+                          liveMinute === preset
+                            ? 'bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/40 font-bold'
+                            : 'bg-white dark:bg-[#0B0F17] border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Notice on Standings Table sync */}
-          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs flex items-center gap-2.5">
-            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
-            <span>
-              Al marcar como <strong>Finalizado</strong>, los puntos y goles se actualizarán automáticamente en la <strong>Tabla de Posiciones</strong>.
-            </span>
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#070A0F]/60 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 text-xs flex items-center gap-2.5">
+            {status === 'En Vivo' ? (
+              <>
+                <Radio className="w-4 h-4 shrink-0 text-red-500 animate-pulse" />
+                <span>
+                  Los marcadores de partidos <strong>EN VIVO</strong> impactan inmediatamente en la <strong>Tabla Virtual en Directo</strong>.
+                </span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
+                <span>
+                  Al marcar como <strong>Finalizado</strong>, el resultado oficial computa definitivamente a la <strong>Tabla de Posiciones</strong>.
+                </span>
+              </>
+            )}
           </div>
 
           {/* Modal Actions */}
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            >
-              Cancelar
-            </button>
+          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+            <div>
+              {status === 'En Vivo' && (
+                <button
+                  type="button"
+                  onClick={() => handleSubmit(undefined, 'Finalizado')}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 transition-all"
+                  title="Concluir el partido y registrar marcador oficial"
+                >
+                  <Flag className="w-3.5 h-3.5 text-amber-500" />
+                  <span>🏁 Silbatazo Final (Finalizar)</span>
+                </button>
+              )}
+            </div>
 
-            <button
-              type="submit"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 shadow-md dark:shadow-emerald-glow transition-all"
-            >
-              <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
-              <span>Guardar Marcador Oficial</span>
-            </button>
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="submit"
+                className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold active:scale-95 shadow-md transition-all ${
+                  status === 'En Vivo'
+                    ? 'text-white bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 shadow-red-500/20'
+                    : 'text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 shadow-emerald-500/20'
+                }`}
+              >
+                {status === 'En Vivo' ? (
+                  <>
+                    <Radio className="w-4 h-4 animate-pulse stroke-[2.5]" />
+                    <span>Guardar Minuto a Minuto</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
+                    <span>Guardar Marcador Oficial</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </div>

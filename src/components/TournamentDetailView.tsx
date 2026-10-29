@@ -38,6 +38,7 @@ import { StandingsTable } from './StandingsTable';
 import { TeamRosterView } from './TeamRosterView';
 import { TournamentRulesConfig } from './TournamentRulesConfig';
 import { PlayerProfileView } from './PlayerProfileView';
+import { LiveMatchesBanner } from './LiveMatchesBanner';
 
 const STATUS_CONFIG: Record<
   TournamentStatus,
@@ -99,7 +100,9 @@ interface TournamentDetailViewProps {
     status: MatchStatus,
     homePenalties?: number,
     awayPenalties?: number,
-    penaltyWinnerId?: string
+    penaltyWinnerId?: string,
+    liveMinute?: string,
+    liveStage?: '1T' | 'Medio Tiempo' | '2T' | 'Tiempo Extra'
   ) => void;
   onUpdateStatus?: (tournamentId: string, newStatus: TournamentStatus) => void;
   onUpdateTournamentRules?: (tournamentId: string, rules: TournamentRules) => void;
@@ -352,6 +355,16 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Live Matches Direct Banner Alert */}
+      <LiveMatchesBanner
+        matches={tournamentMatches}
+        teams={tournamentTeams}
+        onOpenMatchScore={(match) => {
+          setSelectedMatchForScore(match);
+          setIsScoreModalOpen(true);
+        }}
+      />
 
       {/* Main Tournament Hero Header */}
       <div className="relative rounded-3xl p-6 sm:p-8 lg:p-10 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-card-dark overflow-hidden">
@@ -1060,9 +1073,9 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
                               Finalizado
                             </span>
                           ) : isLive ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
-                              En Juego
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 animate-pulse">
+                              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+                              🔴 EN VIVO {match.liveMinute ? `• ${match.liveStage ? `${match.liveStage} ` : ''}${match.liveMinute}` : (match.liveStage ? `• ${match.liveStage}` : '')}
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
@@ -1122,6 +1135,8 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
                             className={`mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
                               isFinished
                                 ? 'text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 bg-white dark:bg-[#0B0F17] hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 shadow-sm'
+                                : isLive
+                                ? 'text-white bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 shadow-red-500/20 shadow-sm'
                                 : 'text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 shadow-sm'
                             }`}
                           >
@@ -1130,10 +1145,15 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
                                 <Edit3 className="w-3 h-3" />
                                 <span>Editar Marcador</span>
                               </>
+                            ) : isLive ? (
+                              <>
+                                <Activity className="w-3.5 h-3.5 animate-pulse" />
+                                <span>⚡ Minuto a Minuto</span>
+                              </>
                             ) : (
                               <>
                                 <Trophy className="w-3 h-3 stroke-[2.5]" />
-                                <span>+ Marcador / Resultado</span>
+                                <span>+ Marcador / Iniciar</span>
                               </>
                             )}
                           </button>
@@ -1315,8 +1335,8 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
           setIsScoreModalOpen(false);
           setSelectedMatchForScore(null);
         }}
-        onSave={(matchId, homeScore, awayScore, status, homePenalties, awayPenalties, penaltyWinnerId) => {
-          onUpdateScore(matchId, homeScore, awayScore, status, homePenalties, awayPenalties, penaltyWinnerId);
+        onSave={(matchId, homeScore, awayScore, status, homePenalties, awayPenalties, penaltyWinnerId, liveMinute, liveStage) => {
+          onUpdateScore(matchId, homeScore, awayScore, status, homePenalties, awayPenalties, penaltyWinnerId, liveMinute, liveStage);
           setIsScoreModalOpen(false);
           setSelectedMatchForScore(null);
         }}

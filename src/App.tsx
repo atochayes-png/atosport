@@ -18,6 +18,8 @@ import { CheckCircle2 } from 'lucide-react';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoginView } from './components/LoginView';
+import { LiveMatchesBanner } from './components/LiveMatchesBanner';
+import { ScoreModal } from './components/ScoreModal';
 
 const STORAGE_KEY = 'atosport_tournaments';
 const TEAMS_STORAGE_KEY = 'atosport_teams';
@@ -88,6 +90,7 @@ function AppContent() {
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'tournaments' | 'scores'>('dashboard');
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeMatchForScore, setActiveMatchForScore] = useState<Match | null>(null);
   
   // Load initial tournaments with localStorage synchronization
   const [tournaments, setTournaments] = useState<Tournament[]>(() => {
@@ -419,7 +422,9 @@ function AppContent() {
     status: MatchStatus,
     homePenalties?: number,
     awayPenalties?: number,
-    penaltyWinnerId?: string
+    penaltyWinnerId?: string,
+    liveMinute?: string,
+    liveStage?: '1T' | 'Medio Tiempo' | '2T' | 'Tiempo Extra'
   ) => {
     setMatches((prev) =>
       prev.map((m) =>
@@ -431,7 +436,9 @@ function AppContent() {
               status,
               homePenalties,
               awayPenalties,
-              penaltyWinnerId
+              penaltyWinnerId,
+              liveMinute,
+              liveStage
             }
           : m
       )
@@ -441,11 +448,14 @@ function AppContent() {
     const home = teams.find((t) => t.id === targetMatch?.homeTeamId)?.name || 'Local';
     const away = teams.find((t) => t.id === targetMatch?.awayTeamId)?.name || 'Visitante';
 
-    if (homePenalties !== undefined && awayPenalties !== undefined) {
+    if (status === 'En Vivo') {
+      const timeStr = liveMinute ? `${liveStage ? `${liveStage} ` : ''}${liveMinute}` : (liveStage || 'En Vivo');
+      setNotification(`🔴 ¡Partido en vivo: ${home} ${homeScore} - ${awayScore} ${away} (${timeStr})!`);
+    } else if (homePenalties !== undefined && awayPenalties !== undefined) {
       const winnerName = penaltyWinnerId === targetMatch?.homeTeamId ? home : away;
       setNotification(`¡Marcador oficial: ${home} ${homeScore} (${homePenalties}) - (${awayPenalties}) ${awayScore} ${away}! Gana ${winnerName} en penales.`);
     } else {
-      setNotification(`¡Marcador oficial registrado: ${home} ${homeScore} - ${awayScore} ${away}!`);
+      setNotification(`🏁 ¡Marcador final registrado: ${home} ${homeScore} - ${awayScore} ${away}!`);
     }
     setTimeout(() => setNotification(null), 4000);
   };
@@ -577,6 +587,14 @@ function AppContent() {
           <>
             {currentTab === 'dashboard' && (
               <div className="space-y-4 sm:space-y-6">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
+                  <LiveMatchesBanner
+                    matches={matches}
+                    teams={teams}
+                    tournaments={tournaments}
+                    onOpenMatchScore={(m) => setActiveMatchForScore(m)}
+                  />
+                </div>
                 <Hero
                   onOpenNewTournament={() => setIsModalOpen(true)}
                   onExploreTournaments={() => {
@@ -609,7 +627,14 @@ function AppContent() {
               />
             )}
 
-            {currentTab === 'scores' && <LiveScoresView />}
+            {currentTab === 'scores' && (
+              <LiveScoresView
+                matches={matches}
+                teams={teams}
+                tournaments={tournaments}
+                onOpenMatchScore={(m) => setActiveMatchForScore(m)}
+              />
+            )}
           </>
         )}
       </main>
@@ -641,6 +666,22 @@ function AppContent() {
         onClose={() => setIsModalOpen(false)}
         onSave={handleCreateTournament}
       />
+
+      {/* Quick Score Modal from Live Matches Banner */}
+      {activeMatchForScore && (
+        <ScoreModal
+          isOpen={Boolean(activeMatchForScore)}
+          match={activeMatchForScore}
+          homeTeam={teams.find((t) => t.id === activeMatchForScore.homeTeamId)}
+          awayTeam={teams.find((t) => t.id === activeMatchForScore.awayTeamId)}
+          rules={tournaments.find((t) => t.id === activeMatchForScore.tournamentId)?.rules}
+          onClose={() => setActiveMatchForScore(null)}
+          onSave={(matchId, homeScore, awayScore, status, homePenalties, awayPenalties, penaltyWinnerId, liveMinute, liveStage) => {
+            handleUpdateScore(matchId, homeScore, awayScore, status, homePenalties, awayPenalties, penaltyWinnerId, liveMinute, liveStage);
+            setActiveMatchForScore(null);
+          }}
+        />
+      )}
     </div>
   );
 }

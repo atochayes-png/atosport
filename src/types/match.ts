@@ -23,5 +23,7 @@ export interface Match {
   homePenalties?: number;
   awayPenalties?: number;
   penaltyWinnerId?: string;
+  liveMinute?: string;
+  liveStage?: '1T' | 'Medio Tiempo' | '2T' | 'Tiempo Extra';
   createdAt: string;
 }

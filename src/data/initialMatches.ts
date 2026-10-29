@@ -80,7 +80,11 @@ export const INITIAL_MATCHES: Match[] = [
     date: '2026-11-07',
     time: '19:30',
     field: 'Cancha 2',
-    status: 'Programado',
+    status: 'En Vivo',
+    homeScore: 2,
+    awayScore: 1,
+    liveStage: '2T',
+    liveMinute: "68'",
     createdAt: '2026-02-15T11:00:00.000Z',
   },
   {

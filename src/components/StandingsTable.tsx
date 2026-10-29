@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Table as TableIcon, 
   Trophy, 
   Flame, 
   CheckCircle2, 
-  HelpCircle,
   Shield,
-  Scale
+  Scale,
+  Radio
 } from 'lucide-react';
 import { Team } from '../types/team';
 import { Match } from '../types/match';
@@ -33,18 +33,11 @@ export interface TeamStanding {
   points: number; // PTS
 }
 
-export const StandingsTable: React.FC<StandingsTableProps> = ({
-  teams,
-  matches,
-  tournamentName,
-  rules,
-}) => {
-  const effectiveRules: TournamentRules = rules || DEFAULT_TOURNAMENT_RULES;
-
-  // Only finished matches compute for standings
-  const finishedMatches = matches.filter((m) => m.status === 'Finalizado');
-
-  // Compute standings for each registered team
+function computeStandingsList(
+  teams: Team[],
+  targetMatches: Match[],
+  rules: TournamentRules
+): TeamStanding[] {
   const standings: TeamStanding[] = teams.map((team) => {
     let played = 0;
     let won = 0;
@@ -56,7 +49,7 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
     let goalsAgainst = 0;
     let points = 0;
 
-    finishedMatches.forEach((m) => {
+    targetMatches.forEach((m) => {
       const isHome = m.homeTeamId === team.id;
       const isAway = m.awayTeamId === team.id;
 
@@ -72,24 +65,24 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
         goalsAgainst += aScore;
         if (hScore > aScore) {
           won += 1;
-          points += effectiveRules.pointsWin;
+          points += rules.pointsWin;
         } else if (hScore < aScore) {
           lost += 1;
-          points += effectiveRules.pointsLoss;
+          points += rules.pointsLoss;
         } else {
           drawn += 1;
-          if (effectiveRules.penaltiesEnabled) {
+          if (rules.penaltiesEnabled) {
             if (m.penaltyWinnerId === team.id) {
               penaltiesWon += 1;
-              points += effectiveRules.pointsPenaltiesWin;
+              points += rules.pointsPenaltiesWin;
             } else if (m.penaltyWinnerId) {
               penaltiesLost += 1;
-              points += effectiveRules.pointsPenaltiesLoss;
+              points += rules.pointsPenaltiesLoss;
             } else {
-              points += effectiveRules.pointsDraw;
+              points += rules.pointsDraw;
             }
           } else {
-            points += effectiveRules.pointsDraw;
+            points += rules.pointsDraw;
           }
         }
       } else {
@@ -97,24 +90,24 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
         goalsAgainst += hScore;
         if (aScore > hScore) {
           won += 1;
-          points += effectiveRules.pointsWin;
+          points += rules.pointsWin;
         } else if (aScore < hScore) {
           lost += 1;
-          points += effectiveRules.pointsLoss;
+          points += rules.pointsLoss;
         } else {
           drawn += 1;
-          if (effectiveRules.penaltiesEnabled) {
+          if (rules.penaltiesEnabled) {
             if (m.penaltyWinnerId === team.id) {
               penaltiesWon += 1;
-              points += effectiveRules.pointsPenaltiesWin;
+              points += rules.pointsPenaltiesWin;
             } else if (m.penaltyWinnerId) {
               penaltiesLost += 1;
-              points += effectiveRules.pointsPenaltiesLoss;
+              points += rules.pointsPenaltiesLoss;
             } else {
-              points += effectiveRules.pointsDraw;
+              points += rules.pointsDraw;
             }
           } else {
-            points += effectiveRules.pointsDraw;
+            points += rules.pointsDraw;
           }
         }
       }
@@ -137,12 +130,11 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
     };
   });
 
-  // Head to head resolver for tied teams
   const getHeadToHeadDiff = (teamAId: string, teamBId: string) => {
     let aPoints = 0;
     let bPoints = 0;
 
-    finishedMatches.forEach((m) => {
+    targetMatches.forEach((m) => {
       const matchInvolvesBoth =
         (m.homeTeamId === teamAId && m.awayTeamId === teamBId) ||
         (m.homeTeamId === teamBId && m.awayTeamId === teamAId);
@@ -153,23 +145,23 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
       const bScore = m.homeTeamId === teamAId ? (m.awayScore ?? 0) : (m.homeScore ?? 0);
 
       if (aScore > bScore) {
-        aPoints += effectiveRules.pointsWin;
-        bPoints += effectiveRules.pointsLoss;
+        aPoints += rules.pointsWin;
+        bPoints += rules.pointsLoss;
       } else if (bScore > aScore) {
-        bPoints += effectiveRules.pointsWin;
-        aPoints += effectiveRules.pointsLoss;
+        bPoints += rules.pointsWin;
+        aPoints += rules.pointsLoss;
       } else {
-        if (effectiveRules.penaltiesEnabled && m.penaltyWinnerId) {
+        if (rules.penaltiesEnabled && m.penaltyWinnerId) {
           if (m.penaltyWinnerId === teamAId) {
-            aPoints += effectiveRules.pointsPenaltiesWin;
-            bPoints += effectiveRules.pointsPenaltiesLoss;
+            aPoints += rules.pointsPenaltiesWin;
+            bPoints += rules.pointsPenaltiesLoss;
           } else {
-            bPoints += effectiveRules.pointsPenaltiesWin;
-            aPoints += effectiveRules.pointsPenaltiesLoss;
+            bPoints += rules.pointsPenaltiesWin;
+            aPoints += rules.pointsPenaltiesLoss;
           }
         } else {
-          aPoints += effectiveRules.pointsDraw;
-          bPoints += effectiveRules.pointsDraw;
+          aPoints += rules.pointsDraw;
+          bPoints += rules.pointsDraw;
         }
       }
     });
@@ -177,25 +169,18 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
     return bPoints - aPoints;
   };
 
-  // Sort criteria based on tournament rules:
-  // 1. Points desc
-  // 2. Tiebreaker Priority:
-  //    - 'Diferencia de Goles': DIF desc -> GF desc -> Name asc
-  //    - 'Goles a Favor': GF desc -> DIF desc -> Name asc
-  //    - 'Enfrentamiento Directo': Direct Match desc -> DIF desc -> GF desc -> Name asc
   standings.sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;
 
-    if (effectiveRules.tieBreakerPriority === 'Goles a Favor') {
+    if (rules.tieBreakerPriority === 'Goles a Favor') {
       if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
       if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
-    } else if (effectiveRules.tieBreakerPriority === 'Enfrentamiento Directo') {
+    } else if (rules.tieBreakerPriority === 'Enfrentamiento Directo') {
       const h2h = getHeadToHeadDiff(a.team.id, b.team.id);
       if (h2h !== 0) return h2h;
       if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
       if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
     } else {
-      // Default: Diferencia de Goles
       if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
       if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
     }
@@ -203,7 +188,61 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
     return a.team.name.localeCompare(b.team.name);
   });
 
-  const totalGoals = finishedMatches.reduce(
+  return standings;
+}
+
+export const StandingsTable: React.FC<StandingsTableProps> = ({
+  teams,
+  matches,
+  tournamentName,
+  rules,
+}) => {
+  const effectiveRules: TournamentRules = rules || DEFAULT_TOURNAMENT_RULES;
+  const [tableMode, setTableMode] = useState<'oficial' | 'en_vivo'>('oficial');
+
+  // Finished matches (Official table)
+  const finishedMatches = useMemo(
+    () => matches.filter((m) => m.status === 'Finalizado'),
+    [matches]
+  );
+
+  // Live matches
+  const liveMatches = useMemo(
+    () => matches.filter((m) => m.status === 'En Vivo'),
+    [matches]
+  );
+  const hasLiveMatches = liveMatches.length > 0;
+
+  // Virtual matches: Finished + In-Progress
+  const virtualMatches = useMemo(
+    () => matches.filter((m) => m.status === 'Finalizado' || m.status === 'En Vivo'),
+    [matches]
+  );
+
+  // Calculate official standings
+  const officialStandings = useMemo(() => {
+    return computeStandingsList(teams, finishedMatches, effectiveRules);
+  }, [teams, finishedMatches, effectiveRules]);
+
+  // Calculate virtual standings (with live matches)
+  const virtualStandings = useMemo(() => {
+    return computeStandingsList(teams, virtualMatches, effectiveRules);
+  }, [teams, virtualMatches, effectiveRules]);
+
+  // Map of teamId -> Official position (1-indexed)
+  const officialRanks = useMemo(() => {
+    const map = new Map<string, number>();
+    officialStandings.forEach((item, index) => {
+      map.set(item.team.id, index + 1);
+    });
+    return map;
+  }, [officialStandings]);
+
+  // Select current active standings array
+  const standings = tableMode === 'en_vivo' ? virtualStandings : officialStandings;
+  const currentComputedMatches = tableMode === 'en_vivo' ? virtualMatches : finishedMatches;
+
+  const totalGoals = currentComputedMatches.reduce(
     (acc, m) => acc + (m.homeScore ?? 0) + (m.awayScore ?? 0),
     0
   );
@@ -219,10 +258,11 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
           </div>
           <div>
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              Partidos Jugados
+              {tableMode === 'en_vivo' ? 'Partidos Computados' : 'Partidos Jugados'}
             </span>
             <p className="text-xl font-black text-slate-900 dark:text-white">
-              {finishedMatches.length} <span className="text-xs font-semibold text-slate-400">/ {matches.length} programados</span>
+              {currentComputedMatches.length}{' '}
+              <span className="text-xs font-semibold text-slate-400">/ {matches.length} programados</span>
             </p>
           </div>
         </div>
@@ -234,7 +274,7 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
           </div>
           <div>
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              Goles Anotados
+              Goles {tableMode === 'en_vivo' ? 'al Momento' : 'Oficiales'}
             </span>
             <p className="text-xl font-black text-slate-900 dark:text-white">
               {totalGoals} <span className="text-xs font-semibold text-slate-400">goles totales</span>
@@ -249,7 +289,7 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
           </div>
           <div className="min-w-0">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              Líder General
+              Líder {tableMode === 'en_vivo' ? 'Virtual' : 'General'}
             </span>
             <p className="text-base sm:text-lg font-black text-slate-900 dark:text-white truncate">
               {standings[0]?.team.name || 'Sin definir'}
@@ -260,16 +300,20 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
 
       {/* Main Standings Table Container */}
       <div className="rounded-3xl bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-        {/* Table Title and Qualification Legend */}
+        {/* Table Title, Toggle and Qualification Legend */}
         <div className="p-5 sm:p-6 border-b border-slate-200 dark:border-slate-800/80 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
-              <TableIcon className="w-4 h-4" />
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
+              tableMode === 'en_vivo'
+                ? 'bg-red-500/15 text-red-500 border border-red-500/30'
+                : 'bg-emerald-500/10 text-emerald-500'
+            }`}>
+              {tableMode === 'en_vivo' ? <Radio className="w-5 h-5 animate-pulse" /> : <TableIcon className="w-5 h-5" />}
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white">
-                  Tabla General de Posiciones
+                  {tableMode === 'en_vivo' ? 'Tabla de Posiciones Virtual (En Vivo)' : 'Tabla General de Posiciones (Oficial)'}
                 </h3>
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                   <Scale className="w-3 h-3 text-emerald-500" />
@@ -283,13 +327,77 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-3 self-start lg:self-auto text-xs font-semibold text-slate-500 dark:text-slate-400">
-            <div className="flex items-center gap-2">
+          {/* Mode Switcher Toggle + Legend */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            {/* Toggle: Oficial vs En Vivo */}
+            <div className="inline-flex p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 shadow-xs">
+              <button
+                type="button"
+                onClick={() => setTableMode('oficial')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  tableMode === 'oficial'
+                    ? 'bg-white dark:bg-[#0B0F17] text-slate-900 dark:text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Oficial
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTableMode('en_vivo')}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  tableMode === 'en_vivo'
+                    ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400'
+                }`}
+              >
+                {hasLiveMatches && (
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                  </span>
+                )}
+                <span>En Vivo / Virtual</span>
+                {hasLiveMatches && (
+                  <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                    tableMode === 'en_vivo' ? 'bg-red-800/80 text-white' : 'bg-red-500/20 text-red-500'
+                  }`}>
+                    {liveMatches.length}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
-              <span>1° al 4° Liguilla / Clasificados</span>
+              <span>1° al 4° Liguilla</span>
             </div>
           </div>
         </div>
+
+        {/* Live Virtual Mode Info Notice Banner */}
+        {tableMode === 'en_vivo' && (
+          <div className="px-5 py-2.5 bg-red-500/10 border-b border-red-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-red-700 dark:text-red-300">
+            <div className="flex items-center gap-2">
+              <Radio className="w-4 h-4 text-red-500 animate-pulse shrink-0" />
+              <span>
+                <strong>Modo Tabla Virtual en Directo:</strong> Computa {finishedMatches.length} partidos finalizados + los marcadores parciales de {liveMatches.length} partidos en disputa.
+              </span>
+            </div>
+            <div className="flex items-center gap-3 text-[11px] font-bold text-slate-600 dark:text-slate-400">
+              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                <span>▲</span> Subió puesto
+              </span>
+              <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                <span>▼</span> Bajó puesto
+              </span>
+              <span className="flex items-center gap-1 text-slate-400">
+                <span>=</span> Sin cambio
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Empty State */}
         {teams.length === 0 ? (
@@ -310,8 +418,13 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-[#070A0F]/50 text-slate-500 dark:text-slate-400 uppercase text-[10px] font-extrabold tracking-wider">
                   <th className="py-3.5 px-4 text-center w-12">Pos</th>
+                  {tableMode === 'en_vivo' && (
+                    <th className="py-3.5 px-2 text-center w-14 text-red-600 dark:text-red-400" title="Tendencia respecto a la tabla oficial">
+                      Tend
+                    </th>
+                  )}
                   <th className="py-3.5 px-4 min-w-[190px]">Club / Equipo</th>
-                  <th className="py-3.5 px-3 text-center" title="Partidos Jugados">JJ</th>
+                  <th className="py-3.5 px-3 text-center" title="Partidos Jugados / Computados">JJ</th>
                   <th className="py-3.5 px-3 text-center" title="Partidos Ganados">JG</th>
                   <th className="py-3.5 px-3 text-center" title="Partidos Empatados">JE</th>
                   {effectiveRules.penaltiesEnabled && (
@@ -328,7 +441,11 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
                   <th className="py-3.5 px-3 text-center" title="Goles a Favor">GF</th>
                   <th className="py-3.5 px-3 text-center" title="Goles en Contra">GC</th>
                   <th className="py-3.5 px-3 text-center font-bold" title="Diferencia de Goles">DIF</th>
-                  <th className="py-3.5 px-4 text-center font-black text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm bg-emerald-500/5" title="Puntos Totales">
+                  <th className={`py-3.5 px-4 text-center font-black text-xs sm:text-sm ${
+                    tableMode === 'en_vivo'
+                      ? 'text-red-600 dark:text-red-400 bg-red-500/5'
+                      : 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/5'
+                  }`} title="Puntos Totales">
                     PTS
                   </th>
                 </tr>
@@ -338,6 +455,10 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
                   const pos = index + 1;
                   const isTopFour = pos <= 4;
                   const teamColor = row.team.color || '#10B981';
+
+                  // Trend calculation for live virtual mode
+                  const officialPos = officialRanks.get(row.team.id) ?? pos;
+                  const diff = officialPos - pos; // if officialPos = 4 and current pos = 2, diff = +2 (rose 2 spots)
 
                   return (
                     <tr
@@ -350,7 +471,9 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
                           <span
                             className={`w-6 h-6 rounded-full flex items-center justify-center font-black text-xs ${
                               isTopFour
-                                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-extrabold'
+                                ? tableMode === 'en_vivo'
+                                  ? 'bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 font-extrabold'
+                                  : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-extrabold'
                                 : 'text-slate-500 dark:text-slate-400'
                             }`}
                           >
@@ -358,6 +481,36 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
                           </span>
                         </div>
                       </td>
+
+                      {/* Trend column (Virtual live mode only) */}
+                      {tableMode === 'en_vivo' && (
+                        <td className="py-3.5 px-2 text-center">
+                          {diff > 0 ? (
+                            <span 
+                              title={`Subió ${diff} ${diff === 1 ? 'lugar' : 'lugares'} respecto a la tabla oficial (#${officialPos})`}
+                              className="inline-flex items-center justify-center gap-0.5 px-1.5 py-0.5 rounded-md text-[11px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-2xs"
+                            >
+                              <span>▲</span>
+                              <span>+{diff}</span>
+                            </span>
+                          ) : diff < 0 ? (
+                            <span 
+                              title={`Bajó ${Math.abs(diff)} ${Math.abs(diff) === 1 ? 'lugar' : 'lugares'} respecto a la tabla oficial (#${officialPos})`}
+                              className="inline-flex items-center justify-center gap-0.5 px-1.5 py-0.5 rounded-md text-[11px] font-black bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 shadow-2xs"
+                            >
+                              <span>▼</span>
+                              <span>{Math.abs(diff)}</span>
+                            </span>
+                          ) : (
+                            <span 
+                              title={`Conserva su posición oficial (#${officialPos})`}
+                              className="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold text-slate-400 dark:text-slate-500"
+                            >
+                              =
+                            </span>
+                          )}
+                        </td>
+                      )}
 
                       {/* Team Name and Badge */}
                       <td className="py-3.5 px-4">
@@ -431,7 +584,7 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
                               ? 'text-emerald-600 dark:text-emerald-400'
                               : row.goalDifference < 0
                               ? 'text-red-500'
-                              : 'text-slate-400'
+                              : 'text-slate-500'
                           }
                         >
                           {row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}
@@ -439,7 +592,11 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
                       </td>
 
                       {/* PTS */}
-                      <td className="py-3.5 px-4 text-center font-black text-sm sm:text-base text-emerald-600 dark:text-emerald-400 bg-emerald-500/5">
+                      <td className={`py-3.5 px-4 text-center font-black text-sm sm:text-base ${
+                        tableMode === 'en_vivo'
+                          ? 'text-red-600 dark:text-red-400 bg-red-500/5'
+                          : 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/5'
+                      }`}>
                         {row.points}
                       </td>
                     </tr>
@@ -449,32 +606,6 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
             </table>
           </div>
         )}
-
-        {/* Table Footer with Explanations */}
-        <div className="p-4 bg-slate-50/70 dark:bg-[#070A0F]/60 border-t border-slate-200 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-[11px] text-slate-500 dark:text-slate-400">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <HelpCircle className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span>
-              <strong>JJ:</strong> Jugados • <strong>JG:</strong> Ganados ({effectiveRules.pointsWin} pts) •{' '}
-              {effectiveRules.penaltiesEnabled ? (
-                <>
-                  <strong>GP:</strong> Ganados Penales ({effectiveRules.pointsPenaltiesWin} pts) • <strong>PP:</strong> Perdidos Penales ({effectiveRules.pointsPenaltiesLoss} pt) •{' '}
-                </>
-              ) : (
-                <>
-                  <strong>JE:</strong> Empatados ({effectiveRules.pointsDraw} pt) •{' '}
-                </>
-              )}
-              <strong>JP:</strong> Perdidos ({effectiveRules.pointsLoss} pts) • <strong>DIF:</strong> Diferencia • <strong>PTS:</strong> Puntos Oficiales
-            </span>
-          </div>
-
-          <div>
-            <span>
-              Criterio de Desempate: <strong className="text-slate-800 dark:text-slate-200">{effectiveRules.tieBreakerPriority}</strong>
-            </span>
-          </div>
-        </div>
       </div>
     </div>
   );
