@@ -9,4 +9,4 @@ export interface Team {
   createdAt: string;      // ISO Date
 }
 
-export type TournamentDetailTab = 'equipos' | 'rol' | 'tabla' | 'cedulas';
+export type TournamentDetailTab = 'equipos' | 'rol' | 'tabla' | 'reglas' | 'cedulas';

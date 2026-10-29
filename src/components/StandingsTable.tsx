@@ -5,15 +5,18 @@ import {
   Flame, 
   CheckCircle2, 
   HelpCircle,
-  Shield
+  Shield,
+  Scale
 } from 'lucide-react';
 import { Team } from '../types/team';
 import { Match } from '../types/match';
+import { TournamentRules, DEFAULT_TOURNAMENT_RULES } from '../types/tournament';
 
 interface StandingsTableProps {
   teams: Team[];
   matches: Match[];
   tournamentName: string;
+  rules?: TournamentRules;
 }
 
 export interface TeamStanding {
@@ -22,6 +25,8 @@ export interface TeamStanding {
   won: number;    // JG
   drawn: number;  // JE
   lost: number;   // JP
+  penaltiesWon: number; // PGP (Penales Ganados)
+  penaltiesLost: number; // PPP (Penales Perdidos)
   goalsFor: number; // GF
   goalsAgainst: number; // GC
   goalDifference: number; // DIF
@@ -32,7 +37,10 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
   teams,
   matches,
   tournamentName,
+  rules,
 }) => {
+  const effectiveRules: TournamentRules = rules || DEFAULT_TOURNAMENT_RULES;
+
   // Only finished matches compute for standings
   const finishedMatches = matches.filter((m) => m.status === 'Finalizado');
 
@@ -42,8 +50,11 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
     let won = 0;
     let drawn = 0;
     let lost = 0;
+    let penaltiesWon = 0;
+    let penaltiesLost = 0;
     let goalsFor = 0;
     let goalsAgainst = 0;
+    let points = 0;
 
     finishedMatches.forEach((m) => {
       const isHome = m.homeTeamId === team.id;
@@ -59,20 +70,57 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
       if (isHome) {
         goalsFor += hScore;
         goalsAgainst += aScore;
-        if (hScore > aScore) won += 1;
-        else if (hScore === aScore) drawn += 1;
-        else lost += 1;
+        if (hScore > aScore) {
+          won += 1;
+          points += effectiveRules.pointsWin;
+        } else if (hScore < aScore) {
+          lost += 1;
+          points += effectiveRules.pointsLoss;
+        } else {
+          drawn += 1;
+          if (effectiveRules.penaltiesEnabled) {
+            if (m.penaltyWinnerId === team.id) {
+              penaltiesWon += 1;
+              points += effectiveRules.pointsPenaltiesWin;
+            } else if (m.penaltyWinnerId) {
+              penaltiesLost += 1;
+              points += effectiveRules.pointsPenaltiesLoss;
+            } else {
+              points += effectiveRules.pointsDraw;
+            }
+          } else {
+            points += effectiveRules.pointsDraw;
+          }
+        }
       } else {
         goalsFor += aScore;
         goalsAgainst += hScore;
-        if (aScore > hScore) won += 1;
-        else if (aScore === hScore) drawn += 1;
-        else lost += 1;
+        if (aScore > hScore) {
+          won += 1;
+          points += effectiveRules.pointsWin;
+        } else if (aScore < hScore) {
+          lost += 1;
+          points += effectiveRules.pointsLoss;
+        } else {
+          drawn += 1;
+          if (effectiveRules.penaltiesEnabled) {
+            if (m.penaltyWinnerId === team.id) {
+              penaltiesWon += 1;
+              points += effectiveRules.pointsPenaltiesWin;
+            } else if (m.penaltyWinnerId) {
+              penaltiesLost += 1;
+              points += effectiveRules.pointsPenaltiesLoss;
+            } else {
+              points += effectiveRules.pointsDraw;
+            }
+          } else {
+            points += effectiveRules.pointsDraw;
+          }
+        }
       }
     });
 
     const goalDifference = goalsFor - goalsAgainst;
-    const points = won * 3 + drawn * 1;
 
     return {
       team,
@@ -80,6 +128,8 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
       won,
       drawn,
       lost,
+      penaltiesWon,
+      penaltiesLost,
       goalsFor,
       goalsAgainst,
       goalDifference,
@@ -87,15 +137,69 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
     };
   });
 
-  // Sort criteria:
+  // Head to head resolver for tied teams
+  const getHeadToHeadDiff = (teamAId: string, teamBId: string) => {
+    let aPoints = 0;
+    let bPoints = 0;
+
+    finishedMatches.forEach((m) => {
+      const matchInvolvesBoth =
+        (m.homeTeamId === teamAId && m.awayTeamId === teamBId) ||
+        (m.homeTeamId === teamBId && m.awayTeamId === teamAId);
+
+      if (!matchInvolvesBoth) return;
+
+      const aScore = m.homeTeamId === teamAId ? (m.homeScore ?? 0) : (m.awayScore ?? 0);
+      const bScore = m.homeTeamId === teamAId ? (m.awayScore ?? 0) : (m.homeScore ?? 0);
+
+      if (aScore > bScore) {
+        aPoints += effectiveRules.pointsWin;
+        bPoints += effectiveRules.pointsLoss;
+      } else if (bScore > aScore) {
+        bPoints += effectiveRules.pointsWin;
+        aPoints += effectiveRules.pointsLoss;
+      } else {
+        if (effectiveRules.penaltiesEnabled && m.penaltyWinnerId) {
+          if (m.penaltyWinnerId === teamAId) {
+            aPoints += effectiveRules.pointsPenaltiesWin;
+            bPoints += effectiveRules.pointsPenaltiesLoss;
+          } else {
+            bPoints += effectiveRules.pointsPenaltiesWin;
+            aPoints += effectiveRules.pointsPenaltiesLoss;
+          }
+        } else {
+          aPoints += effectiveRules.pointsDraw;
+          bPoints += effectiveRules.pointsDraw;
+        }
+      }
+    });
+
+    return bPoints - aPoints;
+  };
+
+  // Sort criteria based on tournament rules:
   // 1. Points desc
-  // 2. Goal Difference desc
-  // 3. Goals For desc
-  // 4. Team Name asc
+  // 2. Tiebreaker Priority:
+  //    - 'Diferencia de Goles': DIF desc -> GF desc -> Name asc
+  //    - 'Goles a Favor': GF desc -> DIF desc -> Name asc
+  //    - 'Enfrentamiento Directo': Direct Match desc -> DIF desc -> GF desc -> Name asc
   standings.sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;
-    if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
-    if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+
+    if (effectiveRules.tieBreakerPriority === 'Goles a Favor') {
+      if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+      if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+    } else if (effectiveRules.tieBreakerPriority === 'Enfrentamiento Directo') {
+      const h2h = getHeadToHeadDiff(a.team.id, b.team.id);
+      if (h2h !== 0) return h2h;
+      if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+      if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+    } else {
+      // Default: Diferencia de Goles
+      if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+      if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+    }
+
     return a.team.name.localeCompare(b.team.name);
   });
 
@@ -157,24 +261,33 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
       {/* Main Standings Table Container */}
       <div className="rounded-3xl bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
         {/* Table Title and Qualification Legend */}
-        <div className="p-5 sm:p-6 border-b border-slate-200 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="p-5 sm:p-6 border-b border-slate-200 dark:border-slate-800/80 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
               <TableIcon className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white">
-                Tabla General de Posiciones
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Torneo: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{tournamentName}</span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white">
+                  Tabla General de Posiciones
+                </h3>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                  <Scale className="w-3 h-3 text-emerald-500" />
+                  {effectiveRules.pointsWin}-{effectiveRules.pointsDraw}-{effectiveRules.pointsLoss} pts
+                  {effectiveRules.penaltiesEnabled && ` (Pen: +${effectiveRules.pointsPenaltiesWin}/+${effectiveRules.pointsPenaltiesLoss})`}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Torneo: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{tournamentName}</span> • Desempate: <strong className="text-slate-700 dark:text-slate-300">{effectiveRules.tieBreakerPriority}</strong>
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-auto text-xs font-semibold text-slate-500 dark:text-slate-400">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
-            <span>1° al 4° Clasificación a Liguilla</span>
+          <div className="flex items-center gap-3 self-start lg:self-auto text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
+              <span>1° al 4° Liguilla / Clasificados</span>
+            </div>
           </div>
         </div>
 
@@ -193,14 +306,24 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
           </div>
         ) : (
           <div className="overflow-x-auto scrollbar-none">
-            <table className="w-full text-left text-xs sm:text-sm border-collapse min-w-[620px]">
+            <table className="w-full text-left text-xs sm:text-sm border-collapse min-w-[660px]">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-[#070A0F]/50 text-slate-500 dark:text-slate-400 uppercase text-[10px] font-extrabold tracking-wider">
                   <th className="py-3.5 px-4 text-center w-12">Pos</th>
-                  <th className="py-3.5 px-4 min-w-[200px]">Club / Equipo</th>
+                  <th className="py-3.5 px-4 min-w-[190px]">Club / Equipo</th>
                   <th className="py-3.5 px-3 text-center" title="Partidos Jugados">JJ</th>
                   <th className="py-3.5 px-3 text-center" title="Partidos Ganados">JG</th>
                   <th className="py-3.5 px-3 text-center" title="Partidos Empatados">JE</th>
+                  {effectiveRules.penaltiesEnabled && (
+                    <>
+                      <th className="py-3.5 px-2.5 text-center text-amber-600 dark:text-amber-400 font-black" title="Ganados en Penales (Punto Extra)">
+                        GP
+                      </th>
+                      <th className="py-3.5 px-2.5 text-center text-slate-500 dark:text-slate-400" title="Perdidos en Penales">
+                        PP
+                      </th>
+                    </>
+                  )}
                   <th className="py-3.5 px-3 text-center" title="Partidos Perdidos">JP</th>
                   <th className="py-3.5 px-3 text-center" title="Goles a Favor">GF</th>
                   <th className="py-3.5 px-3 text-center" title="Goles en Contra">GC</th>
@@ -273,6 +396,18 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
                         {row.drawn}
                       </td>
 
+                      {/* GP & PP if penalties enabled */}
+                      {effectiveRules.penaltiesEnabled && (
+                        <>
+                          <td className="py-3.5 px-2.5 text-center font-bold text-amber-600 dark:text-amber-400 bg-amber-500/5">
+                            {row.penaltiesWon}
+                          </td>
+                          <td className="py-3.5 px-2.5 text-center font-medium text-slate-600 dark:text-slate-400">
+                            {row.penaltiesLost}
+                          </td>
+                        </>
+                      )}
+
                       {/* JP */}
                       <td className="py-3.5 px-3 text-center font-medium text-slate-700 dark:text-slate-300">
                         {row.lost}
@@ -317,15 +452,27 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
 
         {/* Table Footer with Explanations */}
         <div className="p-4 bg-slate-50/70 dark:bg-[#070A0F]/60 border-t border-slate-200 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-[11px] text-slate-500 dark:text-slate-400">
-          <div className="flex items-center gap-1.5">
-            <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <HelpCircle className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <span>
-              <strong>JJ:</strong> Jugados • <strong>JG:</strong> Ganados • <strong>JE:</strong> Empatados • <strong>JP:</strong> Perdidos • <strong>GF:</strong> Goles Favor • <strong>GC:</strong> Goles Contra • <strong>DIF:</strong> Diferencia • <strong>PTS:</strong> Puntos (3 por JG, 1 por JE)
+              <strong>JJ:</strong> Jugados • <strong>JG:</strong> Ganados ({effectiveRules.pointsWin} pts) •{' '}
+              {effectiveRules.penaltiesEnabled ? (
+                <>
+                  <strong>GP:</strong> Ganados Penales ({effectiveRules.pointsPenaltiesWin} pts) • <strong>PP:</strong> Perdidos Penales ({effectiveRules.pointsPenaltiesLoss} pt) •{' '}
+                </>
+              ) : (
+                <>
+                  <strong>JE:</strong> Empatados ({effectiveRules.pointsDraw} pt) •{' '}
+                </>
+              )}
+              <strong>JP:</strong> Perdidos ({effectiveRules.pointsLoss} pts) • <strong>DIF:</strong> Diferencia • <strong>PTS:</strong> Puntos Oficiales
             </span>
           </div>
 
           <div>
-            <span>Criterio: Puntos &gt; Diferencia de Goles &gt; Goles a Favor</span>
+            <span>
+              Criterio de Desempate: <strong className="text-slate-800 dark:text-slate-200">{effectiveRules.tieBreakerPriority}</strong>
+            </span>
           </div>
         </div>
       </div>

@@ -7,7 +7,7 @@ import { TournamentsView } from './components/TournamentsView';
 import { TournamentDetailView } from './components/TournamentDetailView';
 import { LiveScoresView } from './components/LiveScoresView';
 import { NewTournamentModal } from './components/NewTournamentModal';
-import { Tournament, TournamentStatus } from './types/tournament';
+import { Tournament, TournamentStatus, TournamentRules, DEFAULT_TOURNAMENT_RULES } from './types/tournament';
 import { Team } from './types/team';
 import { Match, Matchday, MatchStatus } from './types/match';
 import { Player, TeamFinance } from './types/player';
@@ -34,6 +34,15 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
     status: 'Activo',
     teamsCount: 14,
     maxTeams: 16,
+    rules: {
+      pointsWin: 3,
+      pointsDraw: 1,
+      pointsLoss: 0,
+      penaltiesEnabled: true,
+      pointsPenaltiesWin: 2,
+      pointsPenaltiesLoss: 1,
+      tieBreakerPriority: 'Diferencia de Goles',
+    },
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
   },
   {
@@ -45,6 +54,7 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
     status: 'En Inscripciones',
     teamsCount: 8,
     maxTeams: 20,
+    rules: { ...DEFAULT_TOURNAMENT_RULES },
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
   },
   {
@@ -398,17 +408,28 @@ function AppContent() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // Update match score and status
+  // Update match score and status (including penalty shootouts)
   const handleUpdateScore = (
     matchId: string,
     homeScore: number,
     awayScore: number,
-    status: MatchStatus
+    status: MatchStatus,
+    homePenalties?: number,
+    awayPenalties?: number,
+    penaltyWinnerId?: string
   ) => {
     setMatches((prev) =>
       prev.map((m) =>
         m.id === matchId
-          ? { ...m, homeScore, awayScore, status }
+          ? { 
+              ...m, 
+              homeScore, 
+              awayScore, 
+              status,
+              homePenalties,
+              awayPenalties,
+              penaltyWinnerId
+            }
           : m
       )
     );
@@ -417,8 +438,29 @@ function AppContent() {
     const home = teams.find((t) => t.id === targetMatch?.homeTeamId)?.name || 'Local';
     const away = teams.find((t) => t.id === targetMatch?.awayTeamId)?.name || 'Visitante';
 
-    setNotification(`¡Marcador oficial registrado: ${home} ${homeScore} - ${awayScore} ${away}!`);
+    if (homePenalties !== undefined && awayPenalties !== undefined) {
+      const winnerName = penaltyWinnerId === targetMatch?.homeTeamId ? home : away;
+      setNotification(`¡Marcador oficial: ${home} ${homeScore} (${homePenalties}) - (${awayPenalties}) ${awayScore} ${away}! Gana ${winnerName} en penales.`);
+    } else {
+      setNotification(`¡Marcador oficial registrado: ${home} ${homeScore} - ${awayScore} ${away}!`);
+    }
     setTimeout(() => setNotification(null), 4000);
+  };
+
+  // Update tournament scoring rules and tiebreaker settings
+  const handleUpdateTournamentRules = (tournamentId: string, rules: TournamentRules) => {
+    setTournaments((prev) => {
+      const updated = prev.map((t) => (t.id === tournamentId ? { ...t, rules } : t));
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.error('Error saving updated tournament rules to localStorage:', e);
+      }
+      return updated;
+    });
+
+    setNotification('¡Reglamento y sistema de puntuación actualizados!');
+    setTimeout(() => setNotification(null), 3500);
   };
 
   // Player roster and finance management handlers
@@ -517,6 +559,7 @@ function AppContent() {
             onDeleteMatch={handleDeleteMatch}
             onUpdateScore={handleUpdateScore}
             onUpdateStatus={handleUpdateTournamentStatus}
+            onUpdateTournamentRules={handleUpdateTournamentRules}
             onAddPlayer={handleAddPlayer}
             onUpdatePlayer={handleUpdatePlayer}
             onDeletePlayer={handleDeletePlayer}

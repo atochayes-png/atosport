@@ -20,5 +20,8 @@ export interface Match {
   status: MatchStatus;
   homeScore?: number;
   awayScore?: number;
+  homePenalties?: number;
+  awayPenalties?: number;
+  penaltyWinnerId?: string;
   createdAt: string;
 }
