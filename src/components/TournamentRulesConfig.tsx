@@ -10,7 +10,9 @@ import {
   Sparkles, 
   Sliders, 
   Check,
-  Lock
+  Lock,
+  ShieldAlert,
+  UserCheck
 } from 'lucide-react';
 import { TournamentRules, DEFAULT_TOURNAMENT_RULES, TieBreakerCriterion } from '../types/tournament';
 
@@ -30,7 +32,9 @@ export const TournamentRulesConfig: React.FC<TournamentRulesConfigProps> = ({
   onSave,
 }) => {
   const [rules, setRules] = useState<TournamentRules>(() => {
-    return initialRules ? { ...initialRules } : { ...DEFAULT_TOURNAMENT_RULES };
+    return initialRules 
+      ? { ...DEFAULT_TOURNAMENT_RULES, ...initialRules } 
+      : { ...DEFAULT_TOURNAMENT_RULES };
   });
 
   const [hasChanges, setHasChanges] = useState(false);
@@ -38,7 +42,7 @@ export const TournamentRulesConfig: React.FC<TournamentRulesConfigProps> = ({
 
   useEffect(() => {
     if (initialRules) {
-      setRules({ ...initialRules });
+      setRules({ ...DEFAULT_TOURNAMENT_RULES, ...initialRules });
     }
   }, [initialRules]);
 
@@ -50,7 +54,8 @@ export const TournamentRulesConfig: React.FC<TournamentRulesConfigProps> = ({
 
   const applyPreset = (preset: 'fifa' | 'futbol7' | 'tradicional') => {
     if (preset === 'fifa') {
-      setRules({
+      setRules((prev) => ({
+        ...prev,
         pointsWin: 3,
         pointsDraw: 1,
         pointsLoss: 0,
@@ -58,9 +63,12 @@ export const TournamentRulesConfig: React.FC<TournamentRulesConfigProps> = ({
         pointsPenaltiesWin: 2,
         pointsPenaltiesLoss: 1,
         tieBreakerPriority: 'Diferencia de Goles',
-      });
+        minMatchesForPlayoffs: 6,
+        blockIneligiblePlayoffs: true,
+      }));
     } else if (preset === 'futbol7') {
-      setRules({
+      setRules((prev) => ({
+        ...prev,
         pointsWin: 3,
         pointsDraw: 1,
         pointsLoss: 0,
@@ -68,9 +76,12 @@ export const TournamentRulesConfig: React.FC<TournamentRulesConfigProps> = ({
         pointsPenaltiesWin: 2,
         pointsPenaltiesLoss: 1,
         tieBreakerPriority: 'Diferencia de Goles',
-      });
+        minMatchesForPlayoffs: 5,
+        blockIneligiblePlayoffs: true,
+      }));
     } else if (preset === 'tradicional') {
-      setRules({
+      setRules((prev) => ({
+        ...prev,
         pointsWin: 2,
         pointsDraw: 1,
         pointsLoss: 0,
@@ -78,7 +89,9 @@ export const TournamentRulesConfig: React.FC<TournamentRulesConfigProps> = ({
         pointsPenaltiesWin: 2,
         pointsPenaltiesLoss: 1,
         tieBreakerPriority: 'Goles a Favor',
-      });
+        minMatchesForPlayoffs: 6,
+        blockIneligiblePlayoffs: true,
+      }));
     }
     setHasChanges(true);
     setSaveSuccess(false);
@@ -378,6 +391,89 @@ export const TournamentRulesConfig: React.FC<TournamentRulesConfigProps> = ({
               </div>
             )}
           </div>
+
+          {/* Card: Elegibilidad para Liguilla (Fases Finales) */}
+          <div className="p-6 rounded-3xl bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80">
+              <div className="flex items-center gap-2.5">
+                <ShieldAlert className="w-5 h-5 text-emerald-500" />
+                <div>
+                  <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
+                    Elegibilidad para Liguilla (Fases Finales)
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Control de partidos mínimos disputados en fase regular y prevención de cachirules
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                Reglamento
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Partidos Mínimos */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#070A0F] border border-slate-200/80 dark:border-slate-800/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <UserCheck className="w-4 h-4 text-emerald-500" />
+                    Mínimo de Partidos en Fase Regular
+                  </label>
+                  <span className="text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded">
+                    Requisito
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={rules.minMatchesForPlayoffs ?? 6}
+                    onChange={(e) => updateRule('minMatchesForPlayoffs', Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-[#0B0F17] border border-slate-300 dark:border-slate-700 text-center font-black text-xl text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                  />
+                  <span className="text-xs font-bold text-slate-400">Juegos</span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-tight">
+                  Total de asistencias en banca oficiales que el jugador debe acumular para estar habilitado en Liguilla.
+                </p>
+              </div>
+
+              {/* Toggle Bloqueo Automático */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#070A0F] border border-slate-200/80 dark:border-slate-800/80 space-y-3 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Bloqueo automático de alineación indebida
+                    </label>
+                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                      rules.blockIneligiblePlayoffs ? 'bg-red-500/20 text-red-600 dark:text-red-400' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                    }`}>
+                      {rules.blockIneligiblePlayoffs ? 'Estricto' : 'Inactivo'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1 leading-tight">
+                    Inhabilita a jugadores inelegibles y bloquea registro de goles, asistencias o tarjetas con alerta roja.
+                  </p>
+                </div>
+
+                <div className="pt-2 flex items-center justify-between border-t border-slate-200/60 dark:border-slate-800/60">
+                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                    {rules.blockIneligiblePlayoffs ? 'Bloqueo Activado (Sí)' : 'Permisivo (No)'}
+                  </span>
+                  <label className="relative inline-flex items-center cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={rules.blockIneligiblePlayoffs ?? true}
+                      onChange={(e) => updateRule('blockIneligiblePlayoffs', e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-800 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500" />
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Right Column: Tie-Breakers & Live Preview */}
@@ -480,6 +576,18 @@ export const TournamentRulesConfig: React.FC<TournamentRulesConfigProps> = ({
               <div className="flex items-center justify-between p-2 rounded-xl bg-white/80 dark:bg-[#0B0F17]/80 border border-slate-200/60 dark:border-slate-800/60">
                 <span className="text-slate-600 dark:text-slate-400">Derrota Regular:</span>
                 <strong className="text-slate-400 font-extrabold">+{rules.pointsLoss} Puntos</strong>
+              </div>
+
+              <div className="flex items-center justify-between p-2 rounded-xl bg-white/80 dark:bg-[#0B0F17]/80 border border-slate-200/60 dark:border-slate-800/60">
+                <span className="text-slate-600 dark:text-slate-400">Mínimo Fase Regular:</span>
+                <strong className="text-emerald-500 font-extrabold">{rules.minMatchesForPlayoffs ?? 6} Juegos</strong>
+              </div>
+
+              <div className="flex items-center justify-between p-2 rounded-xl bg-white/80 dark:bg-[#0B0F17]/80 border border-slate-200/60 dark:border-slate-800/60">
+                <span className="text-slate-600 dark:text-slate-400">Bloqueo Liguilla:</span>
+                <strong className={`font-extrabold ${rules.blockIneligiblePlayoffs ? 'text-red-500' : 'text-slate-400'}`}>
+                  {rules.blockIneligiblePlayoffs ? 'Estricto (Activo)' : 'Permisivo'}
+                </strong>
               </div>
             </div>
 

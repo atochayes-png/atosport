@@ -24,21 +24,24 @@ import {
   ChevronDown,
   Check,
   Scale,
-  Lock
+  Lock,
+  ClipboardCheck
 } from 'lucide-react';
 import { Tournament, TournamentStatus, TournamentRules } from '../types/tournament';
 import { Team, TournamentDetailTab } from '../types/team';
-import { Match, Matchday, MatchStatus } from '../types/match';
+import { Match, Matchday, MatchStatus, MatchAttendance } from '../types/match';
 import { Player, TeamFinance } from '../types/player';
 import { useAuth } from '../context/AuthContext';
 import { NewTeamModal } from './NewTeamModal';
 import { NewMatchModal } from './NewMatchModal';
 import { ScoreModal } from './ScoreModal';
+import { AttendanceModal } from './AttendanceModal';
 import { StandingsTable } from './StandingsTable';
 import { TeamRosterView } from './TeamRosterView';
 import { TournamentRulesConfig } from './TournamentRulesConfig';
 import { PlayerProfileView } from './PlayerProfileView';
 import { LiveMatchesBanner } from './LiveMatchesBanner';
+import { loadTournamentAttendances, saveTournamentAttendances } from '../utils/attendanceUtils';
 
 const STATUS_CONFIG: Record<
   TournamentStatus,
@@ -157,6 +160,26 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
   const [isNewMatchModalOpen, setIsNewMatchModalOpen] = useState(false);
   const [isScoreModalOpen, setIsScoreModalOpen] = useState(false);
   const [selectedMatchForScore, setSelectedMatchForScore] = useState<Match | null>(null);
+  
+  // Attendance and bench photo roll call states
+  const [attendances, setAttendances] = useState<Record<string, MatchAttendance>>(() => {
+    return loadTournamentAttendances(tournament.id);
+  });
+  const [selectedMatchForAttendance, setSelectedMatchForAttendance] = useState<Match | null>(null);
+  const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
+
+  useEffect(() => {
+    setAttendances(loadTournamentAttendances(tournament.id));
+  }, [tournament.id]);
+
+  const handleSaveAttendance = (newAttendance: MatchAttendance) => {
+    setAttendances((prev) => {
+      const updated = { ...prev, [newAttendance.matchId]: newAttendance };
+      saveTournamentAttendances(tournament.id, updated);
+      return updated;
+    });
+  };
+
   const [copyToast, setCopyToast] = useState(false);
 
   // Switch default tab if user switches role
@@ -1065,6 +1088,15 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
 
                       {/* Center: Match Details & Scores */}
                       <div className="flex flex-col items-center justify-center py-2.5 px-3 sm:px-6 rounded-2xl bg-slate-50 dark:bg-[#070A0F]/70 border border-slate-200/80 dark:border-slate-800/60 shrink-0 text-center min-w-[200px]">
+                        {/* Stage Badge if Playoffs */}
+                        {match.stage && match.stage !== 'Fase Regular' && (
+                          <div className="mb-1">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                              🏆 {match.stage}
+                            </span>
+                          </div>
+                        )}
+
                         {/* Status Badge */}
                         <div className="mb-1.5">
                           {isFinished ? (
@@ -1125,6 +1157,38 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
                           </span>
                         </div>
 
+                        {/* Attendance Roll Call Action Button */}
+                        {(() => {
+                          const att = attendances[match.id];
+                          const totalInBench = (att?.homePresentPlayerIds?.length || 0) + (att?.awayPresentPlayerIds?.length || 0);
+
+                          return (
+                            <div className="mt-2.5 flex flex-col items-center gap-1 w-full">
+                              <button
+                                onClick={() => {
+                                  setSelectedMatchForAttendance(match);
+                                  setIsAttendanceModalOpen(true);
+                                }}
+                                className={`w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                                  att?.isLocked
+                                    ? 'bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-emerald-500'
+                                    : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 shadow-xs'
+                                }`}
+                              >
+                                <ClipboardCheck className="w-3.5 h-3.5 text-emerald-500" />
+                                <span>{canEditScores() ? '📋 Pasar Lista / Bancas' : '👥 Alineaciones Verificadas'}</span>
+                              </button>
+
+                              {att?.isLocked && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                                  <span>Bancas Verificadas ({totalInBench} presentes)</span>
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
+
                         {/* Score Capture / Edit Action Button */}
                         {canEditScores() ? (
                           <button
@@ -1132,7 +1196,7 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
                               setSelectedMatchForScore(match);
                               setIsScoreModalOpen(true);
                             }}
-                            className={`mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                            className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
                               isFinished
                                 ? 'text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 bg-white dark:bg-[#0B0F17] hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 shadow-sm'
                                 : isLive
@@ -1160,7 +1224,7 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
                         ) : (
                           <span
                             title="Solo Árbitros y Administradores pueden capturar o editar marcadores"
-                            className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 cursor-not-allowed"
+                            className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 cursor-not-allowed"
                           >
                             <Lock className="w-3 h-3" />
                             <span>{isFinished ? 'Marcador Oficial' : 'Pendiente por Árbitro'}</span>
@@ -1332,6 +1396,10 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
         homeTeam={teams.find((t) => t.id === selectedMatchForScore?.homeTeamId)}
         awayTeam={teams.find((t) => t.id === selectedMatchForScore?.awayTeamId)}
         rules={tournament.rules}
+        players={players}
+        tournament={tournament}
+        allMatches={tournamentMatches}
+        allAttendances={attendances}
         onClose={() => {
           setIsScoreModalOpen(false);
           setSelectedMatchForScore(null);
@@ -1340,6 +1408,25 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
           onUpdateScore(matchId, homeScore, awayScore, status, homePenalties, awayPenalties, penaltyWinnerId, liveMinute, liveStage);
           setIsScoreModalOpen(false);
           setSelectedMatchForScore(null);
+        }}
+      />
+
+      {/* Attendance and Bench Photo Roll Call Modal */}
+      <AttendanceModal
+        isOpen={isAttendanceModalOpen}
+        match={selectedMatchForAttendance}
+        tournament={tournament}
+        homeTeam={teams.find((t) => t.id === selectedMatchForAttendance?.homeTeamId)}
+        awayTeam={teams.find((t) => t.id === selectedMatchForAttendance?.awayTeamId)}
+        players={players}
+        allMatches={tournamentMatches}
+        allAttendances={attendances}
+        onClose={() => {
+          setIsAttendanceModalOpen(false);
+          setSelectedMatchForAttendance(null);
+        }}
+        onSaveAttendance={(newAttendance) => {
+          handleSaveAttendance(newAttendance);
         }}
       />
     </div>

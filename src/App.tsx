@@ -46,6 +46,8 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
       pointsPenaltiesWin: 2,
       pointsPenaltiesLoss: 1,
       tieBreakerPriority: 'Diferencia de Goles',
+      minMatchesForPlayoffs: 6,
+      blockIneligiblePlayoffs: true,
     },
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
   },
@@ -675,6 +677,9 @@ function AppContent() {
           homeTeam={teams.find((t) => t.id === activeMatchForScore.homeTeamId)}
           awayTeam={teams.find((t) => t.id === activeMatchForScore.awayTeamId)}
           rules={tournaments.find((t) => t.id === activeMatchForScore.tournamentId)?.rules}
+          players={players}
+          tournament={tournaments.find((t) => t.id === activeMatchForScore.tournamentId)}
+          allMatches={matches}
           onClose={() => setActiveMatchForScore(null)}
           onSave={(matchId, homeScore, awayScore, status, homePenalties, awayPenalties, penaltyWinnerId, liveMinute, liveStage) => {
             handleUpdateScore(matchId, homeScore, awayScore, status, homePenalties, awayPenalties, penaltyWinnerId, liveMinute, liveStage);

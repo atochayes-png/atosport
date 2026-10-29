@@ -10,11 +10,14 @@ import {
   AlertTriangle,
   Radio,
   Clock,
-  Flag
+  Flag,
+  Users
 } from 'lucide-react';
 import { Team } from '../types/team';
-import { Match, MatchStatus } from '../types/match';
-import { TournamentRules } from '../types/tournament';
+import { Match, MatchStatus, MatchAttendance } from '../types/match';
+import { TournamentRules, Tournament } from '../types/tournament';
+import { Player } from '../types/player';
+import { checkPlayerEligibility } from '../utils/attendanceUtils';
 
 interface ScoreModalProps {
   isOpen: boolean;
@@ -22,6 +25,10 @@ interface ScoreModalProps {
   homeTeam: Team | undefined;
   awayTeam: Team | undefined;
   rules?: TournamentRules;
+  players?: Player[];
+  tournament?: Tournament;
+  allMatches?: Match[];
+  allAttendances?: Record<string, MatchAttendance>;
   onClose: () => void;
   onSave: (
     matchId: string, 
@@ -42,6 +49,10 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
   homeTeam,
   awayTeam,
   rules,
+  players = [],
+  tournament,
+  allMatches = [],
+  allAttendances = {},
   onClose,
   onSave,
 }) => {
@@ -53,6 +64,16 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
   const [liveStage, setLiveStage] = useState<'1T' | 'Medio Tiempo' | '2T' | 'Tiempo Extra'>('1T');
   const [liveMinute, setLiveMinute] = useState<string>("10'");
   const [penaltyError, setPenaltyError] = useState<string | null>(null);
+
+  // Ineligibility alert state for event registration
+  const [ineligibilityAlert, setIneligibilityAlert] = useState<{
+    show: boolean;
+    playerName: string;
+    minRequired: number;
+    matchesCount: number;
+  } | null>(null);
+  const [selectedEventType, setSelectedEventType] = useState<'Gol' | 'Asistencia' | 'Tarjeta Amarilla' | 'Tarjeta Roja'>('Gol');
+  const [eventSuccessMsg, setEventSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && match) {
@@ -129,6 +150,40 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
       );
     }
   };
+
+  const handleRegisterPlayerEvent = (player: Player, isHome: boolean) => {
+    const isPlayoffs = Boolean(match.isPlayoffs || (match.stage && match.stage !== 'Fase Regular'));
+    const blockIneligible = rules?.blockIneligiblePlayoffs ?? true;
+    const minRequired = rules?.minMatchesForPlayoffs ?? 6;
+
+    if (isPlayoffs && blockIneligible && tournament) {
+      const eligibility = checkPlayerEligibility(player, tournament, match, allMatches, allAttendances);
+      if (!eligibility.isEligible) {
+        setIneligibilityAlert({
+          show: true,
+          playerName: player.name,
+          minRequired,
+          matchesCount: eligibility.matchesCount,
+        });
+        return;
+      }
+    }
+
+    if (selectedEventType === 'Gol') {
+      if (isHome) {
+        setHomeScore((prev) => prev + 1);
+      } else {
+        setAwayScore((prev) => prev + 1);
+      }
+    }
+
+    setEventSuccessMsg(`✓ ${selectedEventType} registrado a ${player.name} (#${player.number})`);
+    setTimeout(() => setEventSuccessMsg(null), 3000);
+  };
+
+  const homePlayers = players.filter((p) => p.teamId === homeTeam?.id);
+  const awayPlayers = players.filter((p) => p.teamId === awayTeam?.id);
+  const isPlayoffs = Boolean(match.isPlayoffs || (match.stage && match.stage !== 'Fase Regular'));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
@@ -558,6 +613,120 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
             </div>
           )}
 
+          {/* Registrar Incidencias / Eventos de Partido (Goles / Asistencias / Tarjetas) */}
+          {players.length > 0 && (
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#070A0F]/80 border border-slate-200 dark:border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-emerald-500" />
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Registrar Incidencias por Jugador
+                  </label>
+                </div>
+                {isPlayoffs && (
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                    Liguilla: Filtro de Elegibilidad
+                  </span>
+                )}
+              </div>
+
+              {/* Event Type Selector */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                {(['Gol', 'Asistencia', 'Tarjeta Amarilla', 'Tarjeta Roja'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setSelectedEventType(t)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition-all border ${
+                      selectedEventType === t
+                        ? t === 'Gol'
+                          ? 'bg-emerald-500 text-slate-950 border-emerald-500'
+                          : t === 'Tarjeta Amarilla'
+                          ? 'bg-amber-400 text-slate-950 border-amber-400'
+                          : t === 'Tarjeta Roja'
+                          ? 'bg-red-500 text-white border-red-500'
+                          : 'bg-blue-500 text-white border-blue-500'
+                        : 'bg-white dark:bg-[#0B0F17] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    {t === 'Gol' ? '⚽ Gol' : t === 'Asistencia' ? '🎯 Asistencia' : t === 'Tarjeta Amarilla' ? '🟨 Amarilla' : '🟥 Roja'}
+                  </button>
+                ))}
+              </div>
+
+              {eventSuccessMsg && (
+                <div className="p-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
+                  {eventSuccessMsg}
+                </div>
+              )}
+
+              {/* Quick Player Tag List */}
+              <div className="grid grid-cols-2 gap-3 max-h-36 overflow-y-auto p-1">
+                {/* Local Players */}
+                <div className="space-y-1">
+                  <span className="text-[10px] font-black uppercase text-slate-400 block truncate">
+                    {homeTeam?.name || 'Local'}
+                  </span>
+                  <div className="space-y-1">
+                    {homePlayers.map((p) => {
+                      const elig = tournament ? checkPlayerEligibility(p, tournament, match, allMatches, allAttendances) : { isEligible: true };
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => handleRegisterPlayerEvent(p, true)}
+                          className={`w-full text-left p-1.5 rounded-lg text-xs font-bold flex items-center justify-between border transition-all ${
+                            isPlayoffs && !elig.isEligible
+                              ? 'bg-red-500/5 text-red-600 dark:text-red-400 border-red-500/30 hover:bg-red-500/10'
+                              : 'bg-white dark:bg-[#0B0F17] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-emerald-500'
+                          }`}
+                        >
+                          <span className="truncate">#{p.number} {p.name}</span>
+                          {isPlayoffs && (
+                            <span className={`text-[9px] font-black uppercase px-1 rounded ${elig.isEligible ? 'text-emerald-500' : 'text-red-500 bg-red-500/15'}`}>
+                              {elig.isEligible ? 'OK' : 'INELEGIBLE'}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Away Players */}
+                <div className="space-y-1">
+                  <span className="text-[10px] font-black uppercase text-slate-400 block truncate">
+                    {awayTeam?.name || 'Visitante'}
+                  </span>
+                  <div className="space-y-1">
+                    {awayPlayers.map((p) => {
+                      const elig = tournament ? checkPlayerEligibility(p, tournament, match, allMatches, allAttendances) : { isEligible: true };
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => handleRegisterPlayerEvent(p, false)}
+                          className={`w-full text-left p-1.5 rounded-lg text-xs font-bold flex items-center justify-between border transition-all ${
+                            isPlayoffs && !elig.isEligible
+                              ? 'bg-red-500/5 text-red-600 dark:text-red-400 border-red-500/30 hover:bg-red-500/10'
+                              : 'bg-white dark:bg-[#0B0F17] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-blue-500'
+                          }`}
+                        >
+                          <span className="truncate">#{p.number} {p.name}</span>
+                          {isPlayoffs && (
+                            <span className={`text-[9px] font-black uppercase px-1 rounded ${elig.isEligible ? 'text-emerald-500' : 'text-red-500 bg-red-500/15'}`}>
+                              {elig.isEligible ? 'OK' : 'INELEGIBLE'}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Notice on Standings Table sync */}
           <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#070A0F]/60 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 text-xs flex items-center gap-2.5">
             {status === 'En Vivo' ? (
@@ -626,6 +795,44 @@ export const ScoreModal: React.FC<ScoreModalProps> = ({
           </div>
         </form>
       </div>
+
+      {/* Blocking Red Ineligibility Modal Alert */}
+      {ineligibilityAlert?.show && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
+          <div 
+            onClick={() => setIneligibilityAlert(null)}
+            className="fixed inset-0 bg-slate-950/90 backdrop-blur-sm animate-in fade-in" 
+          />
+          <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#0B0F17] border-2 border-red-500 p-6 shadow-2xl z-20 space-y-4 animate-in zoom-in-95">
+            <div className="w-14 h-14 rounded-2xl bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 flex items-center justify-center mx-auto shadow-md">
+              <AlertTriangle className="w-8 h-8" />
+            </div>
+
+            <div className="text-center space-y-1">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-500 text-white">
+                Bloqueo Reglamentario
+              </span>
+              <h3 className="text-lg font-black text-red-600 dark:text-red-400 mt-2">
+                ALINEACIÓN INDEBIDA
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-semibold leading-relaxed">
+                El jugador <strong className="text-slate-950 dark:text-white underline">{ineligibilityAlert.playerName}</strong> no cumple con el mínimo de <strong className="text-red-500">{ineligibilityAlert.minRequired}</strong> partidos reglamentarios de fase regular.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-xs text-red-700 dark:text-red-300 text-center">
+              Acumula únicamente <strong>{ineligibilityAlert.matchesCount} de {ineligibilityAlert.minRequired} partidos jugados</strong>. Queda estrictamente inhabilitado para registrar eventos en este encuentro de Liguilla.
+            </div>
+
+            <button
+              onClick={() => setIneligibilityAlert(null)}
+              className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs sm:text-sm transition-colors shadow-sm"
+            >
+              Entendido / Cerrar Advertencia
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

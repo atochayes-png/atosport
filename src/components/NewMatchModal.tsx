@@ -10,7 +10,7 @@ import {
   Swords
 } from 'lucide-react';
 import { Team } from '../types/team';
-import { Match } from '../types/match';
+import { Match, MatchStage } from '../types/match';
 
 interface NewMatchModalProps {
   isOpen: boolean;
@@ -38,6 +38,7 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
   const [date, setDate] = useState('');
   const [time, setTime] = useState('19:00');
   const [field, setField] = useState('');
+  const [stage, setStage] = useState<MatchStage>('Fase Regular');
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   // 1. Map of teams already assigned to a match in this matchday for this tournament
@@ -217,6 +218,8 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
       time,
       field: field.trim(),
       status: 'Programado',
+      stage,
+      isPlayoffs: stage !== 'Fase Regular',
     });
   };
 
@@ -550,6 +553,50 @@ export const NewMatchModal: React.FC<NewMatchModalProps> = ({
               <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
                 <AlertCircle className="w-3.5 h-3.5" />
                 {errors.field}
+              </p>
+            )}
+          </div>
+
+          {/* Etapa del Partido (Fase Regular vs Liguilla) */}
+          <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070A0F] border border-slate-200 dark:border-slate-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Etapa / Fase de la Competición
+              </label>
+              {stage !== 'Fase Regular' && (
+                <span className="text-[10px] font-black uppercase bg-amber-500/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded">
+                  🏆 Liguilla Activa
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { id: 'Fase Regular' as MatchStage, label: 'Fase Regular' },
+                { id: 'Cuartos de Final' as MatchStage, label: 'Cuartos' },
+                { id: 'Semifinal' as MatchStage, label: 'Semifinal' },
+                { id: 'Gran Final' as MatchStage, label: 'Gran Final' },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setStage(item.id)}
+                  className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all text-center ${
+                    stage === item.id
+                      ? item.id === 'Fase Regular'
+                        ? 'bg-emerald-500 text-slate-950 border-emerald-500 shadow-xs'
+                        : 'bg-amber-500 text-slate-950 border-amber-500 shadow-xs'
+                      : 'bg-white dark:bg-[#0B0F17] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            {stage !== 'Fase Regular' && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 pt-1 leading-tight">
+                ⚠️ Al programar un partido de Liguilla, el sistema evaluará automáticamente las asistencias oficiales de fase regular para habilitar o inhabilitar jugadores.
               </p>
             )}
           </div>

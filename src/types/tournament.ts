@@ -18,6 +18,8 @@ export interface TournamentRules {
   pointsPenaltiesWin: number;  // Puntos ganador de penales (default: 2)
   pointsPenaltiesLoss: number; // Puntos perdedor de penales (default: 1)
   tieBreakerPriority: TieBreakerCriterion; // Criterio de desempate en tabla
+  minMatchesForPlayoffs: number; // Mínimo de partidos en fase regular para liguilla (default: 6)
+  blockIneligiblePlayoffs: boolean; // Bloqueo automático de alineación indebida en Liguilla (default: true)
 }
 
 export const DEFAULT_TOURNAMENT_RULES: TournamentRules = {
@@ -28,6 +30,8 @@ export const DEFAULT_TOURNAMENT_RULES: TournamentRules = {
   pointsPenaltiesWin: 2,
   pointsPenaltiesLoss: 1,
   tieBreakerPriority: 'Diferencia de Goles',
+  minMatchesForPlayoffs: 6,
+  blockIneligiblePlayoffs: true,
 };
 
 export interface InitialTeamStats {

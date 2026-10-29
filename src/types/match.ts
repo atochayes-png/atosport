@@ -1,4 +1,5 @@
 export type MatchStatus = 'Programado' | 'En Vivo' | 'Finalizado' | 'Pospuesto';
+export type MatchStage = 'Fase Regular' | 'Cuartos de Final' | 'Semifinal' | 'Gran Final' | 'Liguilla';
 
 export interface Matchday {
   id: string;
@@ -6,6 +7,19 @@ export interface Matchday {
   number: number;
   name: string;
   createdAt: string;
+}
+
+export interface MatchAttendance {
+  matchId: string;
+  tournamentId: string;
+  homePresentPlayerIds: string[];
+  awayPresentPlayerIds: string[];
+  benchPhotoHome?: string; // base64 / DataURL
+  benchPhotoAway?: string; // base64 / DataURL
+  confirmedAt?: string;    // ISO timestamp
+  confirmedBy?: string;    // Usuario que validó la lista
+  confirmedByUserId?: string;
+  isLocked: boolean;
 }
 
 export interface Match {
@@ -18,6 +32,8 @@ export interface Match {
   time: string;  // HH:mm
   field: string; // Cancha / Campo
   status: MatchStatus;
+  stage?: MatchStage;
+  isPlayoffs?: boolean;
   homeScore?: number;
   awayScore?: number;
   homePenalties?: number;
@@ -27,3 +43,4 @@ export interface Match {
   liveStage?: '1T' | 'Medio Tiempo' | '2T' | 'Tiempo Extra';
   createdAt: string;
 }
+
