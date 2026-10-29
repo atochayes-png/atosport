@@ -1235,6 +1235,7 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
           teams={tournamentTeams}
           matches={tournamentMatches}
           tournamentName={tournament.name}
+          tournamentId={tournament.id}
           rules={tournament.rules}
         />
       )}

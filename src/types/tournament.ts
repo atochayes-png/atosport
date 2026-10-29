@@ -30,6 +30,21 @@ export const DEFAULT_TOURNAMENT_RULES: TournamentRules = {
   tieBreakerPriority: 'Diferencia de Goles',
 };
 
+export interface InitialTeamStats {
+  teamId: string;
+  played: number; // JJ
+  won: number;    // JG
+  drawn: number;  // JE
+  lost: number;   // JP
+  penaltiesWon: number; // GP / PE
+  penaltiesLost: number; // PP
+  goalsFor: number; // GF
+  goalsAgainst: number; // GC
+  penaltyPoints: number; // PEN (Puntos de sanción / deducción)
+  yellowCards: number; // TA
+  redCards: number; // TR
+}
+
 export interface Tournament {
   id: string;
   name: string;
@@ -40,6 +55,7 @@ export interface Tournament {
   teamsCount: number;
   maxTeams: number;
   rules?: TournamentRules;
+  initialStats?: Record<string, InitialTeamStats>;
   startDate?: string;
   createdAt: string;
 }
