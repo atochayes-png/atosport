@@ -25,8 +25,8 @@ import { ROLE_CONFIGS, UserRole } from '../types/auth';
 import { InstallPwaButton } from './InstallPwaButton';
 
 interface NavbarProps {
-  currentTab: 'dashboard' | 'tournaments' | 'scores' | 'community';
-  onNavigate: (tab: 'dashboard' | 'tournaments' | 'scores' | 'community') => void;
+  currentTab: 'dashboard' | 'tournaments' | 'scores' | 'community' | 'master';
+  onNavigate: (tab: 'dashboard' | 'tournaments' | 'scores' | 'community' | 'master') => void;
   onOpenNewTournament: () => void;
 }
 
@@ -54,7 +54,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [userDropdownOpen]);
 
-  const handleMobileNav = (tab: 'dashboard' | 'tournaments' | 'scores' | 'community') => {
+  const handleMobileNav = (tab: 'dashboard' | 'tournaments' | 'scores' | 'community' | 'master') => {
     onNavigate(tab);
     setMobileMenuOpen(false);
   };
@@ -161,6 +161,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <MessageSquare className="w-4 h-4 text-emerald-500" />
                 La Tribuna
               </button>
+
+              {/* Master Root Direct Access Link (Only for MASTER) */}
+              {currentUser?.role === 'MASTER' && (
+                <button
+                  onClick={() => onNavigate('master')}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-black transition-all ${
+                    currentTab === 'master'
+                      ? 'bg-gradient-to-r from-purple-500/20 to-amber-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/40 shadow-sm'
+                      : 'text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-500/10'
+                  }`}
+                >
+                  <Crown className="w-4 h-4 text-amber-500 animate-pulse" />
+                  <span>Panel Master</span>
+                  <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-extrabold border border-amber-500/30">
+                    Total
+                  </span>
+                </button>
+              )}
             </nav>
           </div>
 
@@ -169,28 +187,54 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* User Session Badge & Dropdown */}
             {currentUser && (
               <div className="relative" ref={dropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                  className="flex items-center gap-2 py-1.5 px-2.5 sm:px-3 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-[#0B0F17] dark:hover:bg-slate-800/80 border border-slate-200 dark:border-slate-800 shadow-sm transition-all active:scale-95"
-                  title="Menú de usuario y cambio de rol"
-                >
-                  <div className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                    <RoleIcon className="w-3.5 h-3.5" />
-                  </div>
+                {currentUser.role === 'MASTER' ? (
+                  /* Badge Destacado Exclusivo: Master · MASTER con indicador visual de fundador/superadministrador */
+                  <button
+                    type="button"
+                    onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                    className="flex items-center gap-2 py-1.5 px-3 rounded-xl bg-gradient-to-r from-purple-950/50 via-slate-900 to-amber-950/40 border-2 border-purple-500/60 shadow-lg shadow-purple-500/20 hover:border-purple-400 transition-all active:scale-95 group"
+                    title="Cuenta Fundadora: Master · MASTER (Superadministrador con Bypass Total)"
+                  >
+                    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-amber-400 to-purple-600 text-slate-950 flex items-center justify-center shrink-0 shadow-sm">
+                      <Crown className="w-3.5 h-3.5 text-white" />
+                    </div>
 
-                  <div className="text-left hidden sm:block">
-                    <span className="text-xs font-black text-slate-900 dark:text-white truncate block max-w-[120px]">
-                      {currentUser.username}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-black tracking-wide text-white">
+                        Master · MASTER
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-purple-500/25 text-purple-300 border border-purple-500/50">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                        Fundador
+                      </span>
+                    </div>
+
+                    <ChevronDown className={`w-3.5 h-3.5 text-purple-400 transition-transform duration-200 ${userDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                    className="flex items-center gap-2 py-1.5 px-2.5 sm:px-3 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-[#0B0F17] dark:hover:bg-slate-800/80 border border-slate-200 dark:border-slate-800 shadow-sm transition-all active:scale-95"
+                    title="Menú de usuario y cambio de rol"
+                  >
+                    <div className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                      <RoleIcon className="w-3.5 h-3.5" />
+                    </div>
+
+                    <div className="text-left hidden sm:block">
+                      <span className="text-xs font-black text-slate-900 dark:text-white truncate block max-w-[120px]">
+                        {currentUser.username}
+                      </span>
+                    </div>
+
+                    <span className={`text-[10px] font-black uppercase px-1.5 py-0.2 rounded ${currentRoleConfig?.badgeClass}`}>
+                      {currentRoleConfig?.badgeLabel}
                     </span>
-                  </div>
 
-                  <span className={`text-[10px] font-black uppercase px-1.5 py-0.2 rounded ${currentRoleConfig?.badgeClass}`}>
-                    {currentRoleConfig?.badgeLabel}
-                  </span>
-
-                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${userDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
+                    <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${userDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                )}
 
                 {/* Dropdown Menu */}
                 {userDropdownOpen && (
@@ -198,11 +242,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {/* User Info Header */}
                     <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#070A0F] border border-slate-100 dark:border-slate-800/80 space-y-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-extrabold text-slate-900 dark:text-white truncate">
-                          {currentUser.displayName}
+                        <span className="text-xs font-extrabold text-slate-900 dark:text-white truncate flex items-center gap-1.5">
+                          {currentUser.role === 'MASTER' && <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
+                          <span>{currentUser.displayName}</span>
                         </span>
                         <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${currentRoleConfig?.badgeClass}`}>
-                          {currentRoleConfig?.badgeLabel}
+                          {currentUser.role === 'MASTER' ? 'Master · MASTER' : currentRoleConfig?.badgeLabel}
                         </span>
                       </div>
                       <p className="text-[10px] text-slate-400 dark:text-slate-500">
@@ -398,6 +443,25 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
                 {currentTab === 'community' && <Sparkles className="w-3.5 h-3.5" />}
               </button>
+
+              {currentUser?.role === 'MASTER' && (
+                <button
+                  onClick={() => handleMobileNav('master')}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-extrabold transition-all border ${
+                    currentTab === 'master'
+                      ? 'bg-purple-500 text-white border-purple-400 shadow-md'
+                      : 'text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20 hover:bg-purple-500/20'
+                  }`}
+                >
+                  <span className="flex items-center gap-3">
+                    <Crown className="w-4 h-4 text-amber-400" />
+                    Panel Master (Control Total)
+                  </span>
+                  <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 font-black">
+                    Fundador
+                  </span>
+                </button>
+              )}
             </div>
 
             {/* Mobile Menu Actions */}

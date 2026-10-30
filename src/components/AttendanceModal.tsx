@@ -91,7 +91,8 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     : { isOpen: false, reason: '', badgeText: '', badgeVariant: 'locked' as const };
 
   const isConfirmedLocked = Boolean(existingAttendance?.isLocked);
-  const canEdit = timeWindow.isOpen && !isConfirmedLocked && (isArbitro || isAdminOrMaster);
+  // Rol MASTER cuenta con bypass absoluto para editar y validar cédulas arbitrales
+  const canEdit = isMaster() || (timeWindow.isOpen && !isConfirmedLocked && (isArbitro || isAdminOrMaster));
 
   // Initialize data when modal opens
   useEffect(() => {

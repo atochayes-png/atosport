@@ -3,6 +3,8 @@ import {
   User, 
   UserRole, 
   INITIAL_USERS, 
+  MASTER_USER,
+  isReservedMasterUsername,
   validateUsername, 
   validatePassword 
 } from '../types/auth';
@@ -42,14 +44,18 @@ const STORAGE_CURRENT_USER_KEY = 'atosport_current_user';
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Load users from localStorage or initial seed
+  // Load users from localStorage with immutable Master root enforcement
   const [users, setUsers] = useState<User[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_USERS_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          // Filtramos cualquier copia modificada o intento de sobreescritura de Master
+          const otherUsers = parsed.filter(
+            (u: User) => u.id !== 'u-master' && !isReservedMasterUsername(u.username || '')
+          );
+          return [MASTER_USER, ...otherUsers];
         }
       }
     } catch (e) {
@@ -58,27 +64,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return INITIAL_USERS;
   });
 
-  // Load current user from localStorage (default to Master1 for seamless first load, or null if logged out)
+  // Load current user from localStorage (default to Master for seamless first load and immutable root)
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_CURRENT_USER_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.id) {
+          // Si la sesión guardada corresponde a Master, blindamos las credenciales oficiales
+          if (parsed.id === 'u-master' || isReservedMasterUsername(parsed.username || '') || parsed.role === 'MASTER') {
+            return MASTER_USER;
+          }
           return parsed;
         }
       }
     } catch (e) {
       console.warn('Error loading current user from localStorage:', e);
     }
-    // Default initial session: Master1
-    return INITIAL_USERS[0];
+    // Sesión inicial por defecto: Master (Cuenta Fundadora)
+    return MASTER_USER;
   });
 
   // Sync users with localStorage
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(users));
+      // Nos aseguramos de que MASTER_USER siempre esté en la lista persistida
+      const sanitized = [MASTER_USER, ...users.filter(u => u.id !== 'u-master' && !isReservedMasterUsername(u.username || ''))];
+      localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(sanitized));
     } catch (e) {
       console.error('Error saving users to localStorage:', e);
     }
@@ -88,7 +100,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     try {
       if (currentUser) {
-        localStorage.setItem(STORAGE_CURRENT_USER_KEY, JSON.stringify(currentUser));
+        const toSave = currentUser.role === 'MASTER' ? MASTER_USER : currentUser;
+        localStorage.setItem(STORAGE_CURRENT_USER_KEY, JSON.stringify(toSave));
       } else {
         localStorage.removeItem(STORAGE_CURRENT_USER_KEY);
       }
@@ -100,7 +113,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = (usernameInput: string, passwordInput: string): { success: boolean; error?: string } => {
     const cleanUsername = usernameInput.trim();
 
-    // Validate requirements first
+    // 1. Acceso Exclusivo e Inmutable para la Cuenta Raíz Master / Master1
+    if (isReservedMasterUsername(cleanUsername)) {
+      if (passwordInput === 'Master1') {
+        setCurrentUser(MASTER_USER);
+        try {
+          localStorage.setItem(STORAGE_CURRENT_USER_KEY, JSON.stringify(MASTER_USER));
+        } catch (e) {
+          console.error('Error saving master session:', e);
+        }
+        return { success: true };
+      } else {
+        return { success: false, error: 'Contraseña incorrecta para la cuenta Master.' };
+      }
+    }
+
+    // Validate requirements for other users
     const uVal = validateUsername(cleanUsername);
     if (!uVal.isValid) {
       return { success: false, error: uVal.errors.join('. ') };
@@ -141,6 +169,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }): { success: boolean; error?: string } => {
     const cleanUsername = userData.username.trim();
 
+    // Candado estricto de registro: Queda prohibido registrar el usuario 'Master'
+    if (isReservedMasterUsername(cleanUsername)) {
+      return {
+        success: false,
+        error: 'El nombre de usuario "Master" está blindado y reservado exclusivamente para la cuenta fundadora de ATOSPORT.',
+      };
+    }
+
+    // Candado estricto de rol: Queda prohibido asignarse el rol 'MASTER'
+    if (userData.role === 'MASTER') {
+      return {
+        success: false,
+        error: 'El rol MASTER es una facultad reservada e inmutable de la cuenta fundadora. No puede ser asignado en registros públicos.',
+      };
+    }
+
     const uVal = validateUsername(cleanUsername);
     if (!uVal.isValid) {
       return { success: false, error: uVal.errors.join('. ') };
@@ -177,17 +221,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const switchUser = (userId: string) => {
+    if (userId === 'u-master') {
+      setCurrentUser(MASTER_USER);
+      return;
+    }
     const target = users.find((u) => u.id === userId);
     if (target) {
       setCurrentUser(target);
     }
   };
 
-  // Role Permissions Helpers
+  // Role Permissions Helpers (MASTER cuenta con bypass total sin excepción)
   const isMaster = () => currentUser?.role === 'MASTER';
   const isReferee = () => currentUser?.role === 'ARBITRO';
   const isCaptain = () => currentUser?.role === 'REPRESENTANTE';
-  const isPlayer = () => currentUser?.role === 'JUGADOR';
+  const isPlayer = () => !isMaster() && currentUser?.role === 'JUGADOR';
 
   const canManageTournaments = () => {
     return isMaster() || currentUser?.role === 'ADMIN_LIGA';
@@ -219,6 +267,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const isReadOnly = () => {
+    if (isMaster()) return false;
     return currentUser?.role === 'JUGADOR';
   };
 

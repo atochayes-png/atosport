@@ -25,12 +25,12 @@ export interface RoleConfig {
 export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
   MASTER: {
     role: 'MASTER',
-    label: 'Master Administrador',
+    label: 'Master Fundador',
     badgeLabel: 'MASTER',
-    badgeClass: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30',
+    badgeClass: 'bg-purple-500/15 text-purple-600 dark:text-purple-300 border-purple-500/40 ring-1 ring-purple-500/20 shadow-xs',
     dotClass: 'bg-purple-500 animate-pulse',
-    description: 'Control total de la plataforma, torneos, clubes, arbitraje y finanzas.',
-    permissionsSummary: 'Acceso total e ilimitado',
+    description: 'Control absoluto del sistema ATOSPORT, torneos, clubes, arbitraje y usuarios.',
+    permissionsSummary: 'Acceso Total · Bypass Fundador Activo',
   },
   ADMIN_LIGA: {
     role: 'ADMIN_LIGA',
@@ -70,15 +70,17 @@ export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
   },
 };
 
+export const MASTER_USER: User = {
+  id: 'u-master',
+  username: 'Master',
+  password: 'Master1',
+  displayName: 'Master',
+  role: 'MASTER',
+  createdAt: '2026-01-01T00:00:00.000Z',
+};
+
 export const INITIAL_USERS: User[] = [
-  {
-    id: 'u-master',
-    username: 'Master1',
-    password: 'Master123',
-    displayName: 'Carlos Master',
-    role: 'MASTER',
-    createdAt: new Date().toISOString(),
-  },
+  MASTER_USER,
   {
     id: 'u-admin-liga',
     username: 'AdminLiga',
@@ -140,6 +142,11 @@ export function validateUsername(username: string): ValidationResult {
     isValid: errors.length === 0,
     errors,
   };
+}
+
+export function isReservedMasterUsername(username: string): boolean {
+  const normalized = username.trim().toLowerCase();
+  return normalized === 'master' || normalized === 'master1';
 }
 
 export function validatePassword(password: string): ValidationResult {

@@ -1,10 +1,10 @@
 import React from 'react';
-import { Trophy, Activity, Calendar, Plus, MessageSquare } from 'lucide-react';
+import { Trophy, Activity, Calendar, Plus, MessageSquare, Crown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface BottomNavProps {
-  currentTab: 'dashboard' | 'tournaments' | 'scores' | 'community';
-  onNavigate: (tab: 'dashboard' | 'tournaments' | 'scores' | 'community') => void;
+  currentTab: 'dashboard' | 'tournaments' | 'scores' | 'community' | 'master';
+  onNavigate: (tab: 'dashboard' | 'tournaments' | 'scores' | 'community' | 'master') => void;
   onOpenNewTournament: () => void;
 }
 
@@ -13,7 +13,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   onNavigate,
   onOpenNewTournament,
 }) => {
-  const { canManageTournaments } = useAuth();
+  const { canManageTournaments, isMaster } = useAuth();
   return (
     <nav 
       aria-label="Navegación móvil inferior"
@@ -104,6 +104,26 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           </div>
           <span className="text-[10px] mt-1 tracking-tight">Tribuna</span>
         </button>
+
+        {/* Tab Master (Solo para rol MASTER) */}
+        {isMaster() && (
+          <button
+            onClick={() => onNavigate('master')}
+            className={`flex flex-col items-center justify-center flex-1 py-1.5 px-1 rounded-xl transition-all ${
+              currentTab === 'master'
+                ? 'text-purple-600 dark:text-purple-400 font-bold scale-105'
+                : 'text-purple-400/80 hover:text-purple-600 dark:hover:text-purple-300'
+            }`}
+          >
+            <div className="relative">
+              <Crown className="w-5 h-5 text-amber-500" />
+              {currentTab === 'master' && (
+                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-purple-500" />
+              )}
+            </div>
+            <span className="text-[10px] mt-1 tracking-tight font-black">Master</span>
+          </button>
+        )}
       </div>
     </nav>
   );

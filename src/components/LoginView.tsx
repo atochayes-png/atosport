@@ -21,6 +21,7 @@ import {
   ROLE_CONFIGS, 
   validateUsername, 
   validatePassword, 
+  isReservedMasterUsername,
   INITIAL_USERS 
 } from '../types/auth';
 
@@ -39,6 +40,7 @@ export const LoginView: React.FC = () => {
   // Real-time validations
   const usernameValidation = validateUsername(username);
   const passwordValidation = validatePassword(password);
+  const isMasterAttempt = isReservedMasterUsername(username);
 
   // Rules checklist items
   const usernameLengthOk = username.length >= 6;
@@ -49,7 +51,9 @@ export const LoginView: React.FC = () => {
   const passwordUpperOk = /[A-Z]/.test(password);
   const passwordNumberOk = /[0-9]/.test(password);
 
-  const canSubmit = usernameValidation.isValid && passwordValidation.isValid;
+  const canSubmit = mode === 'register'
+    ? usernameValidation.isValid && passwordValidation.isValid && !isMasterAttempt && selectedRole !== 'MASTER'
+    : (username.trim().length > 0 && password.length > 0);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -200,8 +204,10 @@ export const LoginView: React.FC = () => {
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                   Rol de Acceso en ATOSPORT
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {(Object.keys(ROLE_CONFIGS) as UserRole[]).map((roleKey) => {
+                <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
+                  {(Object.keys(ROLE_CONFIGS) as UserRole[])
+                    .filter((roleKey) => roleKey !== 'MASTER')
+                    .map((roleKey) => {
                     const cfg = ROLE_CONFIGS[roleKey];
                     const isSelected = selectedRole === roleKey;
                     const Icon = getRoleIcon(roleKey);
@@ -252,7 +258,9 @@ export const LoginView: React.FC = () => {
                     setSubmitError(null);
                   }}
                   className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-[#070A0F] border text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 transition-colors ${
-                    username.length === 0
+                    isMasterAttempt && mode === 'register'
+                      ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                      : username.length === 0
                       ? 'border-slate-200 dark:border-slate-800 focus:border-emerald-500 focus:ring-emerald-500'
                       : usernameValidation.isValid
                       ? 'border-emerald-500/60 focus:border-emerald-500 focus:ring-emerald-500'
@@ -262,8 +270,16 @@ export const LoginView: React.FC = () => {
                 <UserIcon className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
 
+              {/* Master Account Registration Lockout Banner */}
+              {isMasterAttempt && mode === 'register' && (
+                <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 flex items-center gap-2 text-xs font-bold">
+                  <Lock className="w-4 h-4 shrink-0" />
+                  <span>El usuario 'Master' es exclusivo, único y blindado para la cuenta fundadora.</span>
+                </div>
+              )}
+
               {/* Real-time Username Checklist */}
-              {username.length > 0 && (
+              {username.length > 0 && !isMasterAttempt && (
                 <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#070A0F]/80 border border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center gap-3 text-[11px]">
                   <span className={`flex items-center gap-1 font-semibold ${usernameLengthOk ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
                     {usernameLengthOk ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <X className="w-3.5 h-3.5" />}
@@ -372,16 +388,21 @@ export const LoginView: React.FC = () => {
             {INITIAL_USERS.map((u) => {
               const cfg = ROLE_CONFIGS[u.role];
               const Icon = getRoleIcon(u.role);
+              const isMasterUser = u.role === 'MASTER';
               return (
                 <button
                   key={u.id}
                   type="button"
                   onClick={() => handleQuickLogin(u)}
-                  className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-[#070A0F] dark:hover:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500/40 text-left transition-all group flex flex-col justify-between shadow-xs"
+                  className={`p-3 rounded-2xl text-left transition-all group flex flex-col justify-between shadow-xs ${
+                    isMasterUser
+                      ? 'bg-gradient-to-br from-purple-500/10 via-slate-50 to-amber-500/10 dark:from-purple-950/30 dark:via-[#070A0F] dark:to-amber-950/20 border-2 border-purple-500/40 hover:border-purple-500 shadow-purple-500/10'
+                      : 'bg-slate-50 hover:bg-slate-100 dark:bg-[#070A0F] dark:hover:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500/40'
+                  }`}
                 >
                   <div className="flex items-center justify-between gap-1 mb-1.5">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <Icon className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <Icon className={`w-3.5 h-3.5 shrink-0 ${isMasterUser ? 'text-amber-500' : 'text-emerald-500'}`} />
                       <span className="font-extrabold text-xs text-slate-900 dark:text-white truncate">
                         {u.username}
                       </span>
@@ -392,9 +413,11 @@ export const LoginView: React.FC = () => {
                   </div>
 
                   <div className="text-[10px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800/60">
-                    <span className="truncate">Pass: {u.password}</span>
-                    <span className="text-emerald-500 font-bold group-hover:translate-x-0.5 transition-transform">
-                      Entrar →
+                    <span className={`truncate font-mono ${isMasterUser ? 'text-purple-600 dark:text-purple-300 font-bold' : ''}`}>
+                      Pass: {u.password}
+                    </span>
+                    <span className={`font-bold group-hover:translate-x-0.5 transition-transform ${isMasterUser ? 'text-amber-500' : 'text-emerald-500'}`}>
+                      {isMasterUser ? 'Entrar (Master) →' : 'Entrar →'}
                     </span>
                   </div>
                 </button>

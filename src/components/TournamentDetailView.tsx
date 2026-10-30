@@ -123,6 +123,7 @@ interface TournamentDetailViewProps {
   onUpdatePlayer?: (playerId: string, playerData: Partial<Player>) => void;
   onDeletePlayer?: (playerId: string) => void;
   onUpdateFinance?: (teamId: string, finance: Partial<TeamFinance>) => void;
+  onDeleteTournament?: (tournamentId: string) => void;
 }
 
 export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
@@ -145,6 +146,7 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
   onUpdatePlayer,
   onDeletePlayer,
   onUpdateFinance,
+  onDeleteTournament,
 }) => {
   const { 
     currentUser, 
@@ -402,6 +404,22 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
             <Share2 className="w-4 h-4" />
             <span className="hidden sm:inline">Compartir</span>
           </button>
+
+          {canManageTournaments() && onDeleteTournament && (
+            <button
+              onClick={() => {
+                if (confirm(`¿ELIMINAR DEFINITIVAMENTE el torneo "${tournament.name}" y todos sus clubes/partidos vinculados? Esta acción es irreversible.`)) {
+                  onDeleteTournament(tournament.id);
+                  onBack();
+                }
+              }}
+              className="p-2 sm:px-3 sm:py-2 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 border border-red-200 dark:border-red-900/50 shadow-sm transition-colors flex items-center gap-1.5 min-h-[40px]"
+              title="Eliminar este torneo (Facultad Master)"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Eliminar Torneo</span>
+            </button>
+          )}
         </div>
       </div>
 

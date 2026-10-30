@@ -21,6 +21,7 @@ import { LoginView } from './components/LoginView';
 import { LiveMatchesBanner } from './components/LiveMatchesBanner';
 import { ScoreModal } from './components/ScoreModal';
 import { ClubCommunityView } from './components/community/ClubCommunityView';
+import { MasterControlPanel } from './components/MasterControlPanel';
 import { useRealtimeLiveMatches, broadcastMatchLiveUpdate, MatchLiveUpdatePayload } from './services/realtimeMatchService';
 
 const STORAGE_KEY = 'atosport_tournaments';
@@ -91,13 +92,43 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
   },
 ];
 
+type AppTab = 'dashboard' | 'tournaments' | 'scores' | 'community' | 'master';
+
+const getInitialTab = (): AppTab => {
+  try {
+    const path = window.location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    if (path.includes('master') || hash.includes('master')) return 'master';
+    if (path.includes('tribuna') || hash.includes('tribuna') || path.includes('community') || hash.includes('community')) return 'community';
+    if (path.includes('scores') || hash.includes('scores') || path.includes('marcadores') || hash.includes('marcadores')) return 'scores';
+    if (path.includes('tournaments') || hash.includes('tournaments') || path.includes('torneos') || hash.includes('torneos')) return 'tournaments';
+    if (path.includes('panel') || hash.includes('panel')) return 'dashboard';
+  } catch {
+    // fallback
+  }
+  return 'dashboard';
+};
+
 function AppContent() {
   const { currentUser } = useAuth();
-  const [currentTab, setCurrentTab] = useState<'dashboard' | 'tournaments' | 'scores' | 'community'>('dashboard');
+  const [currentTab, setCurrentTab] = useState<AppTab>(getInitialTab);
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
   const [selectedCommunityTeamId, setSelectedCommunityTeamId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeMatchForScore, setActiveMatchForScore] = useState<Match | null>(null);
+
+  // Sincronizar rutas del navegador (ej: /master, /panel, /tribuna, etc.)
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setCurrentTab(getInitialTab());
+    };
+    window.addEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
+    };
+  }, []);
   
   // Load initial tournaments with localStorage synchronization
   const [tournaments, setTournaments] = useState<Tournament[]>(() => {
@@ -594,9 +625,17 @@ function AppContent() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const handleNavigate = (tab: 'dashboard' | 'tournaments' | 'scores' | 'community') => {
+  const handleNavigate = (tab: AppTab) => {
     setSelectedTournamentId(null);
     setCurrentTab(tab);
+    try {
+      const targetPath = tab === 'dashboard' ? '/panel' : tab === 'community' ? '/tribuna' : `/${tab}`;
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState(null, '', targetPath);
+      }
+    } catch {
+      // ignore
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -651,6 +690,7 @@ function AppContent() {
             onUpdatePlayer={handleUpdatePlayer}
             onDeletePlayer={handleDeletePlayer}
             onUpdateFinance={handleUpdateFinance}
+            onDeleteTournament={handleDeleteTournament}
           />
         ) : (
           <>
@@ -765,6 +805,22 @@ function AppContent() {
                 </div>
               );
             })()}
+
+            {currentTab === 'master' && (
+              <MasterControlPanel
+                tournaments={tournaments}
+                teams={teams}
+                matches={matches}
+                players={players}
+                onOpenNewTournament={() => setIsModalOpen(true)}
+                onSelectTournament={(t) => {
+                  setSelectedTournamentId(t.id);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                onDeleteTournament={handleDeleteTournament}
+                onNavigateTab={handleNavigate}
+              />
+            )}
           </>
         )}
       </main>
