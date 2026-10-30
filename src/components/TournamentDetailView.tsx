@@ -25,7 +25,8 @@ import {
   Check,
   Scale,
   Lock,
-  ClipboardCheck
+  ClipboardCheck,
+  MessageSquare
 } from 'lucide-react';
 import { Tournament, TournamentStatus, TournamentRules } from '../types/tournament';
 import { Team, TournamentDetailTab } from '../types/team';
@@ -38,6 +39,7 @@ import { ScoreModal } from './ScoreModal';
 import { AttendanceModal } from './AttendanceModal';
 import { StandingsTable } from './StandingsTable';
 import { TeamRosterView } from './TeamRosterView';
+import { ClubCommunityView } from './community/ClubCommunityView';
 import { TournamentRulesConfig } from './TournamentRulesConfig';
 import { PlayerProfileView } from './PlayerProfileView';
 import { LiveMatchesBanner } from './LiveMatchesBanner';
@@ -163,6 +165,7 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
     return 'equipos';
   });
   const [selectedTeamForRoster, setSelectedTeamForRoster] = useState<Team | null>(null);
+  const [selectedTeamForCommunity, setSelectedTeamForCommunity] = useState<Team | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isNewTeamModalOpen, setIsNewTeamModalOpen] = useState(false);
   const [isNewMatchModalOpen, setIsNewMatchModalOpen] = useState(false);
@@ -333,6 +336,21 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
       return dateStr;
     }
   };
+
+  if (selectedTeamForCommunity) {
+    const teamPlayers = players.filter((p) => p.teamId === selectedTeamForCommunity.id);
+    return (
+      <ClubCommunityView
+        team={selectedTeamForCommunity}
+        players={teamPlayers}
+        tournamentName={tournament.name}
+        onBack={() => {
+          setSelectedTeamForCommunity(null);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
+    );
+  }
 
   if (selectedTeamForRoster) {
     const teamPlayers = players.filter((p) => p.teamId === selectedTeamForRoster.id);
@@ -872,16 +890,29 @@ export const TournamentDetailView: React.FC<TournamentDetailViewProps> = ({
                       </div>
                     </div>
 
-                    {/* 3. Action button: Gestionar Plantilla / Roster */}
+                    {/* 3. Action buttons: La Tribuna + Gestionar Plantilla */}
                     <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800/60 flex flex-col gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedTeamForRoster(team)}
-                        className="w-full py-2.5 px-3 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-slate-800 dark:text-slate-200 transition-all flex items-center justify-center gap-2 border border-slate-200/80 dark:border-slate-700 active:scale-98 group-hover:border-emerald-500/40 cursor-pointer shadow-xs"
-                      >
-                        <Users className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>{canManageRoster(team.id) ? 'Gestionar Plantilla / Roster' : 'Ver Plantilla Oficial'}</span>
-                      </button>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTeamForCommunity(team)}
+                          className="py-2.5 px-2 rounded-xl text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-all flex items-center justify-center gap-1.5 border border-emerald-500/30 active:scale-98 cursor-pointer shadow-xs"
+                          title="Entrar a La Tribuna / Red Social del Club"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>La Tribuna</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTeamForRoster(team)}
+                          className="py-2.5 px-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-slate-800 dark:text-slate-200 transition-all flex items-center justify-center gap-1.5 border border-slate-200/80 dark:border-slate-700 active:scale-98 cursor-pointer shadow-xs truncate"
+                          title={canManageRoster(team.id) ? 'Gestionar Plantilla' : 'Ver Plantilla'}
+                        >
+                          <Users className="w-3.5 h-3.5 text-blue-500" />
+                          <span className="truncate">{canManageRoster(team.id) ? 'Plantilla' : 'Ver Roster'}</span>
+                        </button>
+                      </div>
 
                       {/* Card Footer: Alta Date */}
                       <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">

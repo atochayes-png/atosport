@@ -1,10 +1,10 @@
 import React from 'react';
-import { Trophy, Activity, Calendar, Plus } from 'lucide-react';
+import { Trophy, Activity, Calendar, Plus, MessageSquare } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface BottomNavProps {
-  currentTab: 'dashboard' | 'tournaments' | 'scores';
-  onNavigate: (tab: 'dashboard' | 'tournaments' | 'scores') => void;
+  currentTab: 'dashboard' | 'tournaments' | 'scores' | 'community';
+  onNavigate: (tab: 'dashboard' | 'tournaments' | 'scores' | 'community') => void;
   onOpenNewTournament: () => void;
 }
 
@@ -85,6 +85,24 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             )}
           </div>
           <span className="text-[10px] mt-1 tracking-tight">Marcadores</span>
+        </button>
+
+        {/* Tab La Tribuna (Comunidad) */}
+        <button
+          onClick={() => onNavigate('community')}
+          className={`flex flex-col items-center justify-center flex-1 py-1.5 px-1 rounded-xl transition-all ${
+            currentTab === 'community'
+              ? 'text-emerald-600 dark:text-emerald-400 font-bold scale-105'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <div className="relative">
+            <MessageSquare className="w-5 h-5" />
+            {currentTab === 'community' && (
+              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            )}
+          </div>
+          <span className="text-[10px] mt-1 tracking-tight">Tribuna</span>
         </button>
       </div>
     </nav>

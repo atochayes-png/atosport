@@ -14,12 +14,13 @@ import { Player, TeamFinance } from './types/player';
 import { INITIAL_TEAMS } from './data/initialTeams';
 import { INITIAL_MATCHDAYS, INITIAL_MATCHES } from './data/initialMatches';
 import { INITIAL_PLAYERS, INITIAL_TEAM_FINANCES } from './data/initialPlayers';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Shield } from 'lucide-react';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoginView } from './components/LoginView';
 import { LiveMatchesBanner } from './components/LiveMatchesBanner';
 import { ScoreModal } from './components/ScoreModal';
+import { ClubCommunityView } from './components/community/ClubCommunityView';
 import { useRealtimeLiveMatches, broadcastMatchLiveUpdate, MatchLiveUpdatePayload } from './services/realtimeMatchService';
 
 const STORAGE_KEY = 'atosport_tournaments';
@@ -92,8 +93,9 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
 
 function AppContent() {
   const { currentUser } = useAuth();
-  const [currentTab, setCurrentTab] = useState<'dashboard' | 'tournaments' | 'scores'>('dashboard');
+  const [currentTab, setCurrentTab] = useState<'dashboard' | 'tournaments' | 'scores' | 'community'>('dashboard');
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
+  const [selectedCommunityTeamId, setSelectedCommunityTeamId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeMatchForScore, setActiveMatchForScore] = useState<Match | null>(null);
   
@@ -592,7 +594,7 @@ function AppContent() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const handleNavigate = (tab: 'dashboard' | 'tournaments' | 'scores') => {
+  const handleNavigate = (tab: 'dashboard' | 'tournaments' | 'scores' | 'community') => {
     setSelectedTournamentId(null);
     setCurrentTab(tab);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -702,6 +704,67 @@ function AppContent() {
                 onOpenMatchScore={(m) => setActiveMatchForScore(m)}
               />
             )}
+
+            {currentTab === 'community' && (() => {
+              const activeCommunityTeam = 
+                (selectedCommunityTeamId && teams.find((t) => t.id === selectedCommunityTeamId)) ||
+                (currentUser?.teamId && teams.find((t) => t.id === currentUser.teamId)) ||
+                teams[0];
+
+              if (!activeCommunityTeam) {
+                return (
+                  <div className="max-w-md mx-auto py-16 px-4 text-center space-y-3">
+                    <Shield className="w-12 h-12 text-slate-400 mx-auto" />
+                    <h3 className="text-base font-bold text-slate-800 dark:text-white">
+                      No hay clubes registrados todavía
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Inscribe un equipo en un torneo para activar su comunidad privada.
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-4">
+                  {/* Selector rápido de Clubes para navegación multitenant */}
+                  <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+                    <div className="p-3 rounded-2xl bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 overflow-x-auto shadow-xs">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+                        <Shield className="w-3.5 h-3.5 text-emerald-500" />
+                        <span className="hidden sm:inline">Comunidad de:</span>
+                      </div>
+                      <div className="flex items-center gap-2 overflow-x-auto">
+                        {teams.map((t) => (
+                          <button
+                            key={t.id}
+                            onClick={() => setSelectedCommunityTeamId(t.id)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
+                              activeCommunityTeam.id === t.id
+                                ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                                : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                            }`}
+                          >
+                            <span
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ backgroundColor: t.color || '#10B981' }}
+                            />
+                            <span className="truncate max-w-[120px]">{t.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <ClubCommunityView
+                    team={activeCommunityTeam}
+                    players={players.filter((p) => p.teamId === activeCommunityTeam.id)}
+                    tournamentName={tournaments.find((t) => t.id === activeCommunityTeam.tournamentId)?.name}
+                    onBack={() => handleNavigate('dashboard')}
+                  />
+                </div>
+              );
+            })()}
           </>
         )}
       </main>
