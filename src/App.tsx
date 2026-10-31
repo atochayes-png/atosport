@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Navbar } from './components/Navbar';
+import { Navbar, NavTab } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
 import { Hero } from './components/Hero';
 import { StatsCards } from './components/StatsCards';
@@ -14,7 +14,7 @@ import { Player, TeamFinance } from './types/player';
 import { INITIAL_TEAMS } from './data/initialTeams';
 import { INITIAL_MATCHDAYS, INITIAL_MATCHES } from './data/initialMatches';
 import { INITIAL_PLAYERS, INITIAL_TEAM_FINANCES } from './data/initialPlayers';
-import { CheckCircle2, Shield } from 'lucide-react';
+import { CheckCircle2, Shield, Table as TableIcon } from 'lucide-react';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoginView } from './components/LoginView';
@@ -22,6 +22,7 @@ import { LiveMatchesBanner } from './components/LiveMatchesBanner';
 import { ScoreModal } from './components/ScoreModal';
 import { ClubCommunityView } from './components/community/ClubCommunityView';
 import { MasterControlPanel } from './components/MasterControlPanel';
+import { StandingsTable } from './components/StandingsTable';
 import { useRealtimeLiveMatches, broadcastMatchLiveUpdate, MatchLiveUpdatePayload } from './services/realtimeMatchService';
 
 const STORAGE_KEY = 'atosport_tournaments';
@@ -92,15 +93,17 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
   },
 ];
 
-type AppTab = 'dashboard' | 'tournaments' | 'scores' | 'community' | 'master';
+export type AppTab = NavTab;
 
 const getInitialTab = (): AppTab => {
   try {
     const path = window.location.pathname.toLowerCase();
     const hash = window.location.hash.toLowerCase();
+    if (path.includes('acceso') || hash.includes('acceso') || path.includes('login') || hash.includes('login')) return 'acceso';
     if (path.includes('master') || hash.includes('master')) return 'master';
     if (path.includes('tribuna') || hash.includes('tribuna') || path.includes('community') || hash.includes('community')) return 'community';
     if (path.includes('scores') || hash.includes('scores') || path.includes('marcadores') || hash.includes('marcadores')) return 'scores';
+    if (path.includes('tablas') || hash.includes('tablas') || path.includes('posiciones') || hash.includes('posiciones')) return 'tablas';
     if (path.includes('tournaments') || hash.includes('tournaments') || path.includes('torneos') || hash.includes('torneos')) return 'tournaments';
     if (path.includes('panel') || hash.includes('panel')) return 'dashboard';
   } catch {
@@ -110,14 +113,15 @@ const getInitialTab = (): AppTab => {
 };
 
 function AppContent() {
-  const { currentUser } = useAuth();
+  const { currentUser, canEditScores } = useAuth();
   const [currentTab, setCurrentTab] = useState<AppTab>(getInitialTab);
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
   const [selectedCommunityTeamId, setSelectedCommunityTeamId] = useState<string | null>(null);
+  const [selectedTablasTournamentId, setSelectedTablasTournamentId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeMatchForScore, setActiveMatchForScore] = useState<Match | null>(null);
 
-  // Sincronizar rutas del navegador (ej: /master, /panel, /tribuna, etc.)
+  // Sincronizar rutas del navegador (ej: /master, /acceso, /panel, /tribuna, /tablas, etc.)
   useEffect(() => {
     const handleLocationChange = () => {
       setCurrentTab(getInitialTab());
@@ -129,6 +133,13 @@ function AppContent() {
       window.removeEventListener('hashchange', handleLocationChange);
     };
   }, []);
+
+  // Blindaje de ruta: Si se intenta ingresar a /master sin privilegios MASTER, redirige a /acceso
+  useEffect(() => {
+    if (currentTab === 'master' && currentUser?.role !== 'MASTER') {
+      handleNavigate('acceso');
+    }
+  }, [currentTab, currentUser]);
   
   // Load initial tournaments with localStorage synchronization
   const [tournaments, setTournaments] = useState<Tournament[]>(() => {
@@ -629,7 +640,15 @@ function AppContent() {
     setSelectedTournamentId(null);
     setCurrentTab(tab);
     try {
-      const targetPath = tab === 'dashboard' ? '/panel' : tab === 'community' ? '/tribuna' : `/${tab}`;
+      let targetPath = '/';
+      if (tab === 'dashboard') targetPath = '/';
+      else if (tab === 'acceso') targetPath = '/acceso';
+      else if (tab === 'master') targetPath = '/master';
+      else if (tab === 'community') targetPath = '/tribuna';
+      else if (tab === 'scores') targetPath = '/marcadores';
+      else if (tab === 'tablas') targetPath = '/tablas';
+      else if (tab === 'tournaments') targetPath = '/torneos';
+
       if (window.location.pathname !== targetPath) {
         window.history.pushState(null, '', targetPath);
       }
@@ -639,9 +658,14 @@ function AppContent() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // If no user is authenticated, render the dedicated Login / Registration screen
-  if (!currentUser) {
-    return <LoginView />;
+  // Si la ruta activa es /acceso, renderizamos la pantalla de autenticación y registro
+  if (currentTab === 'acceso') {
+    return (
+      <LoginView
+        onLoginSuccess={(role) => handleNavigate(role === 'MASTER' ? 'master' : 'dashboard')}
+        onBackToHome={() => handleNavigate('dashboard')}
+      />
+    );
   }
 
   // Find currently active tournament for detail view
@@ -695,23 +719,52 @@ function AppContent() {
         ) : (
           <>
             {currentTab === 'dashboard' && (
-              <div className="space-y-4 sm:space-y-6">
+              <div className="space-y-6 sm:space-y-8">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
                   <LiveMatchesBanner
                     matches={matches}
                     teams={teams}
                     tournaments={tournaments}
-                    onOpenMatchScore={(m) => setActiveMatchForScore(m)}
+                    onOpenMatchScore={(m) => canEditScores() && setActiveMatchForScore(m)}
                   />
                 </div>
+
                 <Hero
                   onOpenNewTournament={() => setIsModalOpen(true)}
-                  onExploreTournaments={() => {
-                    setSelectedTournamentId(null);
-                    setCurrentTab('tournaments');
-                  }}
+                  onExploreTournaments={() => handleNavigate('tournaments')}
                 />
+
                 <StatsCards tournaments={tournaments} />
+
+                {/* Escaparate de Tablas de Posiciones en Modo Consulta Pública */}
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <TableIcon className="w-5 h-5 text-emerald-500" />
+                      <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white">
+                        Tablas de Posiciones en Vivo (Modo Solo Lectura)
+                      </h2>
+                    </div>
+                    <button
+                      onClick={() => handleNavigate('tablas')}
+                      className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 flex items-center gap-1.5 self-start sm:self-auto"
+                    >
+                      <span>Ver todas las tablas oficiales</span>
+                      <span>→</span>
+                    </button>
+                  </div>
+
+                  {tournaments[0] && (
+                    <StandingsTable
+                      teams={teams.filter((t) => t.tournamentId === (selectedTablasTournamentId || tournaments[0].id))}
+                      matches={matches.filter((m) => m.tournamentId === (selectedTablasTournamentId || tournaments[0].id))}
+                      tournamentName={tournaments.find((t) => t.id === (selectedTablasTournamentId || tournaments[0].id))?.name || tournaments[0].name}
+                      tournamentId={selectedTablasTournamentId || tournaments[0].id}
+                      rules={tournaments.find((t) => t.id === (selectedTablasTournamentId || tournaments[0].id))?.rules}
+                    />
+                  )}
+                </div>
+
                 <TournamentsView
                   tournaments={tournaments}
                   onOpenNewTournament={() => setIsModalOpen(true)}
@@ -741,8 +794,61 @@ function AppContent() {
                 matches={matches}
                 teams={teams}
                 tournaments={tournaments}
-                onOpenMatchScore={(m) => setActiveMatchForScore(m)}
+                onOpenMatchScore={(m) => canEditScores() && setActiveMatchForScore(m)}
               />
+            )}
+
+            {currentTab === 'tablas' && (
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+                  <div>
+                    <div className="flex items-center gap-2.5">
+                      <TableIcon className="w-6 h-6 text-emerald-500" />
+                      <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+                        Tablas Generales de Posiciones
+                      </h1>
+                    </div>
+                    <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+                      Consulta pública en directo con minutero dinámico, racha de últimos partidos y criterios de desempate.
+                    </p>
+                  </div>
+
+                  {/* Selector rápido de Torneo */}
+                  <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+                    {tournaments.map((t) => {
+                      const isSel = (selectedTablasTournamentId || tournaments[0]?.id) === t.id;
+                      return (
+                        <button
+                          key={t.id}
+                          onClick={() => setSelectedTablasTournamentId(t.id)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                            isSel
+                              ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                              : 'bg-white dark:bg-[#0B0F17] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-400'
+                          }`}
+                        >
+                          {t.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {(() => {
+                  const activeId = selectedTablasTournamentId || tournaments[0]?.id;
+                  const activeTourn = tournaments.find((t) => t.id === activeId) || tournaments[0];
+                  if (!activeTourn) return null;
+                  return (
+                    <StandingsTable
+                      teams={teams.filter((t) => t.tournamentId === activeTourn.id)}
+                      matches={matches.filter((m) => m.tournamentId === activeTourn.id)}
+                      tournamentName={activeTourn.name}
+                      tournamentId={activeTourn.id}
+                      rules={activeTourn.rules}
+                    />
+                  );
+                })()}
+              </div>
             )}
 
             {currentTab === 'community' && (() => {

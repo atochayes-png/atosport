@@ -22,6 +22,7 @@ import { Match } from '../types/match';
 import { Player } from '../types/player';
 import { useAuth } from '../context/AuthContext';
 import { ROLE_CONFIGS } from '../types/auth';
+import { NavTab } from './Navbar';
 
 interface MasterControlPanelProps {
   tournaments: Tournament[];
@@ -31,7 +32,7 @@ interface MasterControlPanelProps {
   onOpenNewTournament: () => void;
   onSelectTournament: (tournament: Tournament) => void;
   onDeleteTournament: (tournamentId: string) => void;
-  onNavigateTab: (tab: 'dashboard' | 'tournaments' | 'scores' | 'community' | 'master') => void;
+  onNavigateTab: (tab: NavTab) => void;
 }
 
 export const MasterControlPanel: React.FC<MasterControlPanelProps> = ({
@@ -202,6 +203,14 @@ export const MasterControlPanel: React.FC<MasterControlPanelProps> = ({
           >
             <Activity className="w-3.5 h-3.5 text-rose-500" />
             <span>/marcadores (En Vivo)</span>
+          </button>
+
+          <button
+            onClick={() => onNavigateTab('tablas')}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-emerald-500 border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-1.5"
+          >
+            <Trophy className="w-3.5 h-3.5 text-amber-500" />
+            <span>/tablas (Posiciones)</span>
           </button>
 
           <button

@@ -64,7 +64,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return INITIAL_USERS;
   });
 
-  // Load current user from localStorage (default to Master for seamless first load and immutable root)
+  // Load current user from localStorage (default to null for public visitor mode)
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_CURRENT_USER_KEY);
@@ -81,8 +81,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (e) {
       console.warn('Error loading current user from localStorage:', e);
     }
-    // Sesión inicial por defecto: Master (Cuenta Fundadora)
-    return MASTER_USER;
+    // Sesión inicial por defecto: null (Modo Visitante / Público)
+    return null;
   });
 
   // Sync users with localStorage
@@ -238,7 +238,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const isPlayer = () => !isMaster() && currentUser?.role === 'JUGADOR';
 
   const canManageTournaments = () => {
-    return isMaster() || currentUser?.role === 'ADMIN_LIGA';
+    return isMaster();
   };
 
   const canManageTeams = () => {
@@ -259,7 +259,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const canManageRules = () => {
-    return isMaster() || currentUser?.role === 'ADMIN_LIGA';
+    return isMaster();
   };
 
   const canManageSchedules = () => {
@@ -268,7 +268,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const isReadOnly = () => {
     if (isMaster()) return false;
-    return currentUser?.role === 'JUGADOR';
+    return !currentUser || currentUser?.role === 'JUGADOR';
   };
 
   return (

@@ -1,6 +1,5 @@
 import React from 'react';
-import { Trophy, Plus, Shield, Zap, FileSpreadsheet, Users } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { Trophy, Plus, Shield, Zap, FileSpreadsheet, Users, Sparkles } from 'lucide-react';
 
 interface HeroProps {
   onOpenNewTournament: () => void;
@@ -11,7 +10,6 @@ export const Hero: React.FC<HeroProps> = ({
   onOpenNewTournament,
   onExploreTournaments,
 }) => {
-  const { canManageTournaments } = useAuth();
   return (
     <div className="relative overflow-hidden py-8 sm:py-12 lg:py-16 transition-colors duration-200">
       {/* Decorative gradient glow in the background */}
@@ -37,22 +35,20 @@ export const Hero: React.FC<HeroProps> = ({
 
             {/* Quick Actions (Full-width friendly on mobile) */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2">
-              {canManageTournaments() && (
-                <button
-                  onClick={onOpenNewTournament}
-                  className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl font-bold text-sm sm:text-base text-slate-950 bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-400 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 shadow-md dark:shadow-emerald-glow transition-all duration-200 min-h-[48px]"
-                >
-                  <Plus className="w-5 h-5 stroke-[2.5]" />
-                  <span>+ Crear Nuevo Torneo</span>
-                </button>
-              )}
+              <button
+                onClick={onOpenNewTournament}
+                className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl font-black text-sm sm:text-base text-slate-950 bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-400 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 shadow-lg shadow-emerald-500/20 dark:shadow-emerald-glow transition-all duration-200 min-h-[48px]"
+              >
+                <Sparkles className="w-5 h-5 text-slate-950 fill-current" />
+                <span>Crea tu Torneo Demo</span>
+              </button>
 
               <button
                 onClick={onExploreTournaments}
                 className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-sm sm:text-base text-slate-700 dark:text-slate-200 bg-white dark:bg-[#0B0F17] hover:bg-slate-100 dark:hover:bg-slate-800/80 border border-slate-300 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-700 shadow-sm transition-all duration-200 min-h-[48px]"
               >
                 <Trophy className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span>Ver Torneos Activos</span>
+                <span>Ver Torneos y Marcadores</span>
               </button>
             </div>
 
@@ -68,7 +64,7 @@ export const Hero: React.FC<HeroProps> = ({
               </div>
               <div className="flex items-center justify-center lg:justify-start gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-slate-600 dark:text-slate-300">
                 <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span>Multi-categorías</span>
+                <span>Sin Límite de Equipos</span>
               </div>
             </div>
           </div>
@@ -85,31 +81,31 @@ export const Hero: React.FC<HeroProps> = ({
                       <Trophy className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base">Acceso Rápido</h3>
-                      <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">Panel de lanzamiento inmediato</p>
+                      <h3 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base">Simulador Demo Libre</h3>
+                      <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">Sin límite artificial de 5 equipos</p>
                     </div>
                   </div>
                   <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800/60">
-                    Activo
+                    Abierto
                   </span>
                 </div>
 
                 <div className="p-3.5 sm:p-4 rounded-xl bg-slate-50 dark:bg-[#070A0F]/80 border border-slate-200 dark:border-slate-800/80 space-y-2 sm:space-y-3">
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-500 dark:text-slate-400">Configuración Rápida:</span>
-                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Listo en 1 min</span>
+                    <span className="text-slate-500 dark:text-slate-400">Simulación en Navegador:</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">100% Flexible</span>
                   </div>
                   <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                    Registra tu próxima competencia con reglas oficiales de Fútbol 11, Fútbol 7, Futsal o Básquetbol. Asigna sedes y activa el rol de árbitros.
+                    Configura tu torneo de prueba con el número de clubes que requieras (8, 16, 32 o más). Prueba las reglas oficiales, fixture y tabla de posiciones sin restricciones.
                   </p>
                 </div>
 
                 <button
                   onClick={onOpenNewTournament}
-                  className="w-full flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl font-bold text-xs sm:text-sm text-slate-900 hover:text-slate-950 bg-slate-100 hover:bg-emerald-400 dark:text-white dark:bg-slate-800 dark:hover:bg-emerald-500 dark:hover:text-slate-950 border border-slate-300 dark:border-slate-700 hover:border-emerald-500 transition-all duration-200 shadow-sm min-h-[44px]"
+                  className="w-full flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl font-black text-xs sm:text-sm text-slate-900 hover:text-slate-950 bg-slate-100 hover:bg-emerald-400 dark:text-white dark:bg-slate-800 dark:hover:bg-emerald-500 dark:hover:text-slate-950 border border-slate-300 dark:border-slate-700 hover:border-emerald-500 transition-all duration-200 shadow-sm min-h-[44px]"
                 >
-                  <Plus className="w-4 h-4" />
-                  <span>Configurar Nueva Liga o Torneo</span>
+                  <Plus className="w-4 h-4 stroke-[3]" />
+                  <span>Configurar Torneo Demo Libre</span>
                 </button>
               </div>
             </div>

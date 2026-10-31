@@ -11,9 +11,11 @@ import {
   Share2, 
   Activity,
   Trash2,
-  Sparkles
+  Sparkles,
+  Crown
 } from 'lucide-react';
 import { Tournament, TournamentStatus } from '../types/tournament';
+import { useAuth } from '../context/AuthContext';
 
 interface TournamentsViewProps {
   tournaments: Tournament[];
@@ -28,6 +30,7 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
   onDeleteTournament,
   onSelectTournament,
 }) => {
+  const { isMaster } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
@@ -105,8 +108,8 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
           onClick={onOpenNewTournament}
           className="inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl font-bold text-xs sm:text-sm text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 shadow-md dark:shadow-emerald-glow transition-all w-full sm:w-auto min-h-[44px]"
         >
-          <Plus className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
-          <span>+ Nuevo Torneo</span>
+          {isMaster() ? <Plus className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" /> : <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />}
+          <span>{isMaster() ? '+ Nuevo Torneo' : '+ Crear Torneo Demo'}</span>
         </button>
       </div>
 
@@ -245,9 +248,14 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
                       e.stopPropagation();
                       onSelectTournament?.(tournament);
                     }}
-                    className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 py-1.5 group/btn min-h-[38px]"
+                    className={`inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold py-1.5 group/btn min-h-[38px] transition-colors ${
+                      isMaster()
+                        ? 'text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300'
+                        : 'text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300'
+                    }`}
                   >
-                    <span>Administrar Liga</span>
+                    {isMaster() && <Crown className="w-3.5 h-3.5 text-amber-500" />}
+                    <span>{isMaster() ? 'Administrar Liga' : 'Ver Detalles y Tablas'}</span>
                     <ArrowUpRight className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
                   </button>
 
@@ -266,17 +274,18 @@ export const TournamentsView: React.FC<TournamentsViewProps> = ({
                       <Share2 className="w-4 h-4" />
                     </button>
 
-                    {onDeleteTournament && (
+                    {/* Exclusivo Master: Bote de basura para eliminación de torneos */}
+                    {isMaster() && onDeleteTournament && (
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (confirm(`¿Estás seguro de eliminar el torneo "${tournament.name}"?`)) {
+                          if (confirm(`¿ELIMINAR DEFINITIVAMENTE el torneo "${tournament.name}"? (Facultad exclusiva MASTER)`)) {
                             onDeleteTournament(tournament.id);
                           }
                         }}
                         className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
-                        title="Eliminar torneo"
+                        title="Eliminar torneo (Exclusivo Master)"
                         aria-label="Eliminar torneo"
                       >
                         <Trash2 className="w-4 h-4" />

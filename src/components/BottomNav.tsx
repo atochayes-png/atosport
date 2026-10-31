@@ -1,10 +1,11 @@
 import React from 'react';
-import { Trophy, Activity, Calendar, Plus, MessageSquare, Crown } from 'lucide-react';
+import { Trophy, Activity, Calendar, Plus, MessageSquare, Crown, Table as TableIcon, LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { NavTab } from './Navbar';
 
 interface BottomNavProps {
-  currentTab: 'dashboard' | 'tournaments' | 'scores' | 'community' | 'master';
-  onNavigate: (tab: 'dashboard' | 'tournaments' | 'scores' | 'community' | 'master') => void;
+  currentTab: NavTab;
+  onNavigate: (tab: NavTab) => void;
   onOpenNewTournament: () => void;
 }
 
@@ -13,17 +14,17 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   onNavigate,
   onOpenNewTournament,
 }) => {
-  const { canManageTournaments, isMaster } = useAuth();
+  const { isMaster, currentUser } = useAuth();
   return (
     <nav 
       aria-label="Navegación móvil inferior"
-      className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#070A0F]/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800/90 px-3 py-1.5 shadow-lg transition-colors duration-200"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#070A0F]/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800/90 px-2 py-1.5 shadow-lg transition-colors duration-200"
     >
       <div className="flex items-center justify-around max-w-md mx-auto">
-        {/* Tab Dashboard */}
+        {/* Tab Dashboard / Inicio */}
         <button
           onClick={() => onNavigate('dashboard')}
-          className={`flex flex-col items-center justify-center flex-1 py-1.5 px-1 rounded-xl transition-all ${
+          className={`flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-all ${
             currentTab === 'dashboard'
               ? 'text-emerald-600 dark:text-emerald-400 font-bold scale-105'
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -35,13 +36,13 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-emerald-500" />
             )}
           </div>
-          <span className="text-[10px] mt-1 tracking-tight">Dashboard</span>
+          <span className="text-[9px] mt-1 tracking-tight">Inicio</span>
         </button>
 
         {/* Tab Torneos */}
         <button
           onClick={() => onNavigate('tournaments')}
-          className={`flex flex-col items-center justify-center flex-1 py-1.5 px-1 rounded-xl transition-all ${
+          className={`flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-all ${
             currentTab === 'tournaments'
               ? 'text-emerald-600 dark:text-emerald-400 font-bold scale-105'
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -53,26 +54,25 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-emerald-500" />
             )}
           </div>
-          <span className="text-[10px] mt-1 tracking-tight">Torneos</span>
+          <span className="text-[9px] mt-1 tracking-tight">Torneos</span>
         </button>
 
-        {/* Central Action Button (+ Crear) - Only for tournament managers */}
-        {canManageTournaments() && (
-          <div className="flex-1 flex justify-center -mt-4">
-            <button
-              onClick={onOpenNewTournament}
-              aria-label="Crear nuevo torneo"
-              className="w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-500 to-emerald-400 text-slate-950 flex items-center justify-center shadow-md dark:shadow-emerald-glow active:scale-95 transition-transform"
-            >
-              <Plus className="w-6 h-6 stroke-[3]" />
-            </button>
-          </div>
-        )}
+        {/* Central Action Button (+ Demo / Crear) */}
+        <div className="flex-1 flex justify-center -mt-4">
+          <button
+            onClick={onOpenNewTournament}
+            aria-label="Crea tu Torneo Demo"
+            title="Crea tu Torneo Demo (Sin límite)"
+            className="w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-500 to-emerald-400 text-slate-950 flex items-center justify-center shadow-lg dark:shadow-emerald-glow active:scale-95 transition-transform"
+          >
+            <Plus className="w-6 h-6 stroke-[3]" />
+          </button>
+        </div>
 
         {/* Tab Marcadores */}
         <button
           onClick={() => onNavigate('scores')}
-          className={`flex flex-col items-center justify-center flex-1 py-1.5 px-1 rounded-xl transition-all ${
+          className={`flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-all ${
             currentTab === 'scores'
               ? 'text-emerald-600 dark:text-emerald-400 font-bold scale-105'
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -84,32 +84,32 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-emerald-500" />
             )}
           </div>
-          <span className="text-[10px] mt-1 tracking-tight">Marcadores</span>
+          <span className="text-[9px] mt-1 tracking-tight">Marcadores</span>
         </button>
 
-        {/* Tab La Tribuna (Comunidad) */}
+        {/* Tab Tablas */}
         <button
-          onClick={() => onNavigate('community')}
-          className={`flex flex-col items-center justify-center flex-1 py-1.5 px-1 rounded-xl transition-all ${
-            currentTab === 'community'
+          onClick={() => onNavigate('tablas')}
+          className={`flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-all ${
+            currentTab === 'tablas'
               ? 'text-emerald-600 dark:text-emerald-400 font-bold scale-105'
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
           <div className="relative">
-            <MessageSquare className="w-5 h-5" />
-            {currentTab === 'community' && (
+            <TableIcon className="w-5 h-5" />
+            {currentTab === 'tablas' && (
               <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-emerald-500" />
             )}
           </div>
-          <span className="text-[10px] mt-1 tracking-tight">Tribuna</span>
+          <span className="text-[9px] mt-1 tracking-tight">Tablas</span>
         </button>
 
-        {/* Tab Master (Solo para rol MASTER) */}
-        {isMaster() && (
+        {/* Tab Master / Acceso */}
+        {isMaster() ? (
           <button
             onClick={() => onNavigate('master')}
-            className={`flex flex-col items-center justify-center flex-1 py-1.5 px-1 rounded-xl transition-all ${
+            className={`flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-all ${
               currentTab === 'master'
                 ? 'text-purple-600 dark:text-purple-400 font-bold scale-105'
                 : 'text-purple-400/80 hover:text-purple-600 dark:hover:text-purple-300'
@@ -121,7 +121,41 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                 <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-purple-500" />
               )}
             </div>
-            <span className="text-[10px] mt-1 tracking-tight font-black">Master</span>
+            <span className="text-[9px] mt-1 tracking-tight font-black">Master</span>
+          </button>
+        ) : !currentUser ? (
+          <button
+            onClick={() => onNavigate('acceso')}
+            className={`flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-all ${
+              currentTab === 'acceso'
+                ? 'text-emerald-600 dark:text-emerald-400 font-bold scale-105'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <div className="relative">
+              <LogIn className="w-5 h-5" />
+              {currentTab === 'acceso' && (
+                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              )}
+            </div>
+            <span className="text-[9px] mt-1 tracking-tight font-bold">Acceso</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => onNavigate('community')}
+            className={`flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-all ${
+              currentTab === 'community'
+                ? 'text-emerald-600 dark:text-emerald-400 font-bold scale-105'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <div className="relative">
+              <MessageSquare className="w-5 h-5" />
+              {currentTab === 'community' && (
+                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              )}
+            </div>
+            <span className="text-[9px] mt-1 tracking-tight">Tribuna</span>
           </button>
         )}
       </div>

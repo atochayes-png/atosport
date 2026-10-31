@@ -71,8 +71,8 @@ export const NewTournamentModal: React.FC<NewTournamentModalProps> = ({
     }
 
     const parsedMaxTeams = Number(maxTeams);
-    if (isNaN(parsedMaxTeams) || parsedMaxTeams < 2 || parsedMaxTeams > 64) {
-      setError('El cupo de equipos debe estar entre 2 y 64.');
+    if (isNaN(parsedMaxTeams) || parsedMaxTeams < 2 || parsedMaxTeams > 128) {
+      setError('El cupo de equipos debe ser de al menos 2 (sin límite restrictivo).');
       return;
     }
 
@@ -254,14 +254,19 @@ export const NewTournamentModal: React.FC<NewTournamentModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Límite de Equipos
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Cupo de Equipos
+                </label>
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
+                  Sin límite de 5 equipos
+                </span>
+              </div>
               <div className="relative">
                 <input
                   type="number"
                   min="2"
-                  max="64"
+                  max="128"
                   value={maxTeams}
                   onChange={(e) => setMaxTeams(Number(e.target.value))}
                   className="w-full pl-10 pr-4 py-3 sm:py-2.5 rounded-xl bg-slate-50 dark:bg-[#070A0F] border border-slate-300 dark:border-slate-800 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors min-h-[44px]"

@@ -8,6 +8,7 @@ import {
   Eye, 
   EyeOff, 
   ArrowRight, 
+  ArrowLeft,
   Sparkles, 
   Trophy, 
   Users, 
@@ -25,7 +26,12 @@ import {
   INITIAL_USERS 
 } from '../types/auth';
 
-export const LoginView: React.FC = () => {
+interface LoginViewProps {
+  onLoginSuccess?: (role: UserRole) => void;
+  onBackToHome?: () => void;
+}
+
+export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onBackToHome }) => {
   const { login, register, switchUser } = useAuth();
   const [mode, setMode] = useState<'login' | 'register'>('login');
 
@@ -68,6 +74,10 @@ export const LoginView: React.FC = () => {
       const res = login(username, password);
       if (!res.success) {
         setSubmitError(res.error || 'Credenciales inválidas.');
+      } else {
+        const clean = username.trim().toLowerCase();
+        const role = (clean === 'master' || clean === 'master1') ? 'MASTER' : 'ADMIN_LIGA';
+        onLoginSuccess?.(role);
       }
     } else {
       const res = register({
@@ -78,12 +88,15 @@ export const LoginView: React.FC = () => {
       });
       if (!res.success) {
         setSubmitError(res.error || 'Error al registrar usuario.');
+      } else {
+        onLoginSuccess?.(selectedRole);
       }
     }
   };
 
   const handleQuickLogin = (testUser: typeof INITIAL_USERS[0]) => {
     switchUser(testUser.id);
+    onLoginSuccess?.(testUser.role);
   };
 
   const getRoleIcon = (role: UserRole) => {
@@ -110,6 +123,19 @@ export const LoginView: React.FC = () => {
       <div className="absolute -bottom-20 right-10 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md z-10 text-center">
+        {onBackToHome && (
+          <div className="mb-4 flex justify-center">
+            <button
+              type="button"
+              onClick={onBackToHome}
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-300 bg-white/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 transition-all shadow-xs"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Volver a la Portada Pública</span>
+            </button>
+          </div>
+        )}
+
         {/* Brand Logo & Name */}
         <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 shadow-xl mb-4">
           <img

@@ -11,22 +11,26 @@ import {
   X, 
   Sparkles,
   LogOut,
+  LogIn,
   ChevronDown,
   User as UserIcon,
   Crown,
   Whistle,
   Users,
   Check,
-  MessageSquare
+  MessageSquare,
+  Table as TableIcon
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { ROLE_CONFIGS, UserRole } from '../types/auth';
 import { InstallPwaButton } from './InstallPwaButton';
 
+export type NavTab = 'dashboard' | 'tournaments' | 'scores' | 'community' | 'master' | 'tablas' | 'acceso';
+
 interface NavbarProps {
-  currentTab: 'dashboard' | 'tournaments' | 'scores' | 'community' | 'master';
-  onNavigate: (tab: 'dashboard' | 'tournaments' | 'scores' | 'community' | 'master') => void;
+  currentTab: NavTab;
+  onNavigate: (tab: NavTab) => void;
   onOpenNewTournament: () => void;
 }
 
@@ -54,7 +58,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [userDropdownOpen]);
 
-  const handleMobileNav = (tab: 'dashboard' | 'tournaments' | 'scores' | 'community' | 'master') => {
+  const handleMobileNav = (tab: NavTab) => {
     onNavigate(tab);
     setMobileMenuOpen(false);
   };
@@ -135,32 +139,34 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }`}
               >
                 <Activity className="w-4 h-4" />
-                Marcadores
+                Marcadores en Vivo
               </button>
 
               <button
-                onClick={() => onNavigate('dashboard')}
+                onClick={() => onNavigate('tablas')}
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
-                  currentTab === 'dashboard'
+                  currentTab === 'tablas'
                     ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-slate-800/80 dark:text-emerald-400 dark:border-emerald-500/20 shadow-sm'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/40'
                 }`}
               >
-                <Calendar className="w-4 h-4" />
-                Dashboard
+                <TableIcon className="w-4 h-4" />
+                Tablas
               </button>
 
-              <button
-                onClick={() => onNavigate('community')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
-                  currentTab === 'community'
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-slate-800/80 dark:text-emerald-400 dark:border-emerald-500/20 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/40'
-                }`}
-              >
-                <MessageSquare className="w-4 h-4 text-emerald-500" />
-                La Tribuna
-              </button>
+              {currentUser && (
+                <button
+                  onClick={() => onNavigate('community')}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
+                    currentTab === 'community'
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-slate-800/80 dark:text-emerald-400 dark:border-emerald-500/20 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/40'
+                  }`}
+                >
+                  <MessageSquare className="w-4 h-4 text-emerald-500" />
+                  La Tribuna
+                </button>
+              )}
 
               {/* Master Root Direct Access Link (Only for MASTER) */}
               {currentUser?.role === 'MASTER' && (
@@ -184,8 +190,8 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Buttons & Session Control */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* User Session Badge & Dropdown */}
-            {currentUser && (
+            {/* User Session Badge & Dropdown OR Prominent Acceso Button */}
+            {currentUser ? (
               <div className="relative" ref={dropdownRef}>
                 {currentUser.role === 'MASTER' ? (
                   /* Badge Destacado Exclusivo: Master · MASTER con indicador visual de fundador/superadministrador */
@@ -298,13 +304,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                       </div>
                     </div>
 
-                    {/* Logout Option */}
+                    {/* Logout Option - cleans session and returns to public '/' */}
                     <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80">
                       <button
                         type="button"
                         onClick={() => {
                           logout();
                           setUserDropdownOpen(false);
+                          onNavigate('dashboard');
                         }}
                         className="w-full flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
                       >
@@ -315,6 +322,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                 )}
               </div>
+            ) : (
+              /* Botón Superior Derecho Destacado: "Acceso" (redirige a '/acceso') */
+              <button
+                type="button"
+                onClick={() => onNavigate('acceso')}
+                className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 active:scale-95 shadow-md shadow-emerald-500/20 transition-all duration-200"
+              >
+                <LogIn className="w-4 h-4 stroke-[2.5]" />
+                <span>Acceso</span>
+              </button>
             )}
 
             {/* Install PWA Button (Desktop & Tablet) */}
@@ -430,19 +447,36 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
 
               <button
-                onClick={() => handleMobileNav('community')}
+                onClick={() => handleMobileNav('tablas')}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-                  currentTab === 'community'
+                  currentTab === 'tablas'
                     ? 'bg-emerald-500 text-slate-950'
                     : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
                 }`}
               >
                 <span className="flex items-center gap-3">
-                  <MessageSquare className="w-4 h-4" />
-                  La Tribuna (Comunidad)
+                  <TableIcon className="w-4 h-4" />
+                  Tablas de Posiciones
                 </span>
-                {currentTab === 'community' && <Sparkles className="w-3.5 h-3.5" />}
+                {currentTab === 'tablas' && <Sparkles className="w-3.5 h-3.5" />}
               </button>
+
+              {currentUser && (
+                <button
+                  onClick={() => handleMobileNav('community')}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                    currentTab === 'community'
+                      ? 'bg-emerald-500 text-slate-950'
+                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <span className="flex items-center gap-3">
+                    <MessageSquare className="w-4 h-4" />
+                    La Tribuna (Comunidad)
+                  </span>
+                  {currentTab === 'community' && <Sparkles className="w-3.5 h-3.5" />}
+                </button>
+              )}
 
               {currentUser?.role === 'MASTER' && (
                 <button
@@ -468,6 +502,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="pt-3 border-t border-slate-200 dark:border-slate-800/80 flex flex-col gap-2.5">
               <InstallPwaButton isMobileMenu={true} />
 
+              {!currentUser && (
+                <button
+                  type="button"
+                  onClick={() => handleMobileNav('acceso')}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm text-slate-950 bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-md active:scale-95 transition-all"
+                >
+                  <LogIn className="w-4 h-4 stroke-[2.5]" />
+                  <span>Acceso a ATOSPORT</span>
+                </button>
+              )}
+
               {canManageTournaments() && (
                 <button
                   onClick={handleMobileCreate}
@@ -484,6 +529,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   onClick={() => {
                     logout();
                     setMobileMenuOpen(false);
+                    onNavigate('dashboard');
                   }}
                   className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-bold text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/50 transition-all"
                 >
